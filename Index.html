@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <title>LKH Dashboard</title>
+    <?!= include('Stylesheet'); ?>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LKH Online</h1>
+            <div class="user-info"> Halo, <span id="userInfoName">Memuat...</span> | <button onclick="handleLogout()">Logout</button> </div>
+        </header>
+
+        <div class="school-info card">
+            <h3>Informasi Sekolah & Guru</h3>
+            <p><strong>Nama Guru:</strong> <span id="teacherName"></span> (<span id="teacherNip"></span>)</p>
+            <p><strong>Tugas Pokok:</strong> <span id="teacherDuty"></span></p>
+            <p><strong>Mata Pelajaran:</strong> <span id="teacherSubject"></span></p> <hr style="margin: 10px 0;">
+            <p><strong>Sekolah:</strong> <span id="schoolName"></span></p>
+            <p><strong>Yayasan:</strong> <span id="foundationName"></span></p>
+            <p><strong>Alamat:</strong> <span id="schoolAddress"></span></p>
+        </div>
+
+        <div class="kop-surat-management card">
+            <h3>Pengaturan Kop Surat</h3>
+            <label>Sumber Kop Surat:</label>
+            <div>
+                <input type="radio" id="kopSourceUpload" name="kopSource" value="upload" checked onchange="toggleKopSuratInput()">
+                <label for="kopSourceUpload" style="display:inline-block; margin-right:15px; font-weight:normal;">Upload File</label>
+                <input type="radio" id="kopSourceUrl" name="kopSource" value="url" onchange="toggleKopSuratInput()">
+                <label for="kopSourceUrl" style="display:inline-block; font-weight:normal;">Gunakan URL Gambar</label>
+            </div>
+            <div id="kopFileUploadGroup">
+                <label for="kopSuratFile">Upload Gambar Kop Surat (Max. 1MB, Format: JPG/PNG):</label>
+                <input type="file" id="kopSuratFile" accept="image/jpeg, image/png" style="width:auto;">
+            </div>
+            <div id="kopUrlInputGroup" style="display:none;">
+                <label for="kopSuratImageUrl">URL Gambar Kop Surat:</label>
+                <input type="text" id="kopSuratImageUrl" placeholder="https://example.com/path/to/image.png">
+            </div>
+            <div style="margin-top:10px;">
+                <label>Preview Kop Surat Saat Ini:</label>
+                <div id="kopSuratPreviewContainer" style="border:1px dashed #ccc; min-height:100px; padding:10px; text-align:center;">
+                    <img id="kopSuratPreview" src="#" alt="Preview Kop Surat" style="max-width:100%; max-height:200px; display:none;">
+                    <span id="noKopSuratMessage">Belum ada kop surat terupload atau URL valid.</span>
+                </div>
+            </div>
+            <div class="form-grid" style="margin-top:15px;">
+                <div>
+                    <label for="kopSuratWidth">Lebar Kop Surat (cth: 600px atau 100%):</label>
+                    <input type="text" id="kopSuratWidth" placeholder="100%">
+                </div>
+                <div>
+                    <label for="kopSuratAlignment">Perataan Kop Surat:</label>
+                    <select id="kopSuratAlignment">
+                        <option value="left">Kiri</option>
+                        <option value="center" selected>Tengah</option>
+                        <option value="right">Kanan</option>
+                    </select>
+                </div>
+            </div>
+            <button id="uploadKopSuratButton" onclick="handleUploadKopSurat()">Simpan Kop & Pengaturan</button>
+            <button id="deleteKopSuratButton" onclick="handleDeleteKopSurat()" style="background-color:#dc3545; margin-left:10px;">Hapus Kop Surat</button>
+            <p id="kopSuratMessage" class="message"></p>
+        </div>
+
+        <div class="lkh-form card">
+            <h3>Tambah Kegiatan Harian</h3>
+            <div class="form-grid">
+                <div> <label for="dateOfActivity">Tanggal Kegiatan:</label> <input type="date" id="dateOfActivity" required> </div>
+                <div> <label for="volume">Volume/Keterangan (JPM, dll.):</label> <input type="text" id="volume" required placeholder="Contoh: 6 Orang Siswa atau 5 JPM"> </div>
+            </div>
+            <label for="description">Uraian Kegiatan:</label>
+            <textarea id="description" rows="3" required placeholder="Contoh: Ceklok Masuk&#10;Melaksanakan kebersihan Madrasah&#10;..."></textarea>
+            <label for="output">Hasil/Output:</label>
+            <textarea id="output" rows="3" required placeholder="Contoh: Bukti hadir/Disiplin Kerja&#10;Guru dan Siswa&#10;..."></textarea>
+            <button id="addEntryButton" onclick="handleAddEntry()">Tambah Kegiatan</button>
+            <p id="addEntryMessage" class="message"></p>
+        </div>
+
+        <div class="recurring-lkh-form card">
+            <h3>Input Kegiatan Mingguan Berulang</h3>
+            <p>Gunakan form ini untuk mengisi kegiatan yang sama setiap minggu pada hari tertentu dalam satu bulan.</p>
+            <label for="recurringMonthYear">Pilih Bulan & Tahun:</label> <input type="month" id="recurringMonthYear">
+            <label for="recurringDayOfWeek">Pilih Hari dalam Seminggu:</label>
+            <select id="recurringDayOfWeek">
+                <option value="1">Senin</option> <option value="2">Selasa</option> <option value="3">Rabu</option>
+                <option value="4">Kamis</option> <option value="5">Jumat</option> <option value="6">Sabtu</option>
+            </select>
+            <label for="recurringDescription">Uraian Kegiatan:</label> <textarea id="recurringDescription" rows="3" placeholder="..."></textarea>
+            <label for="recurringOutput">Hasil/Output:</label> <textarea id="recurringOutput" rows="3" placeholder="..."></textarea>
+            <label for="recurringVolume">Volume/Keterangan:</label> <textarea id="recurringVolume" rows="2" placeholder="..."></textarea>
+            <button id="addRecurringEntryButton" onclick="handleAddRecurringEntry()">Simpan Kegiatan Berulang</button>
+            <p id="addRecurringEntryMessage" class="message"></p>
+        </div>
+
+        <div class="report-section card">
+            <h3>Generate Laporan Bulanan</h3>
+            <label for="reportMonth">Pilih Bulan & Tahun:</label> <input type="month" id="reportMonth">
+            <button id="generateReportButton" onclick="handleGenerateReport()">Tampilkan Laporan</button>
+            <div id="reportDisplay" class="report-display"></div>
+        </div>
+        <button id="printReportButton" onclick="printReport()" style="display:none; margin-top:10px; background-color: #17a2b8;">Cetak Laporan</button>
+    </div>
+
+    <div id="editLkhModal" class="modal">
+      <div class="modal-content">
+        <span class="close-button" onclick="closeEditModal()">&times;</span>
+        <h3>Edit Kegiatan Harian</h3> <input type="hidden" id="editEntryId">
+        <label for="editDateOfActivity">Tanggal Kegiatan:</label> <input type="date" id="editDateOfActivity" required>
+        <label for="editDescription">Uraian Kegiatan:</label> <textarea id="editDescription" rows="3" required></textarea>
+        <label for="editOutput">Hasil/Output:</label> <textarea id="editOutput" rows="3" required></textarea>
+        <label for="editVolume">Volume/Keterangan:</label> <textarea id="editVolume" rows="2" required></textarea>
+        <button onclick="handleSaveChanges()">Simpan Perubahan</button>
+        <p id="editEntryMessage" class="message"></p>
+      </div>
+    </div>
+
+    <script>
+        let currentKopSuratFileData = null;
+        const editModal = document.getElementById('editLkhModal');
+
+        window.addEventListener('load', function() {
+            loadUserDetails();
+            const today = new Date();
+            const month = ('0' + (today.getMonth() + 1)).slice(-2);
+            const year = today.getFullYear();
+            document.getElementById('reportMonth').value = `${year}-${month}`;
+            if (document.getElementById('recurringMonthYear')) {
+                document.getElementById('recurringMonthYear').value = `${year}-${month}`;
+            }
+            toggleKopSuratInput();
+        });
+
+        function loadUserDetails() {
+            google.script.run.withSuccessHandler(function(details) {
+                if (details && details.user) {
+                    document.getElementById('userInfoName').innerText = details.user.fullName || 'Pengguna';
+                    document.getElementById('teacherName').innerText = details.user.fullName || '-';
+                    document.getElementById('teacherNip').innerText = details.user.nip || '-';
+                    document.getElementById('teacherDuty').innerText = details.user.mainDuty || '-';
+                    document.getElementById('teacherSubject').innerText = details.user.mataPelajaran || '-'; // BARIS BARU
+                    if (details.school) {
+                        document.getElementById('schoolName').innerText = details.school.schoolName || '-';
+                        document.getElementById('foundationName').innerText = details.school.foundationName || '-';
+                        document.getElementById('schoolAddress').innerText = details.school.schoolAddress || '-';
+                    }
+                    if (details.currentKopSurat) {
+                        displayCurrentKopSuratInfo(details.currentKopSurat);
+                    }
+                } else { console.error("Gagal memuat detail pengguna."); document.getElementById('userInfoName').innerText = 'Error';}
+            }).withFailureHandler(function(err){ console.error("Gagal memuat detail user: ", err); document.getElementById('userInfoName').innerText = 'Error'; }).getInitialDashboardData();
+        }
+
+        function toggleKopSuratInput() {
+            const uploadGroup = document.getElementById('kopFileUploadGroup');
+            const urlGroup = document.getElementById('kopUrlInputGroup');
+            if (document.getElementById('kopSourceUpload').checked) {
+                uploadGroup.style.display = 'block';
+                urlGroup.style.display = 'none';
+                document.getElementById('kopSuratImageUrl').value = ''; 
+            } else {
+                uploadGroup.style.display = 'none';
+                urlGroup.style.display = 'block';
+                document.getElementById('kopSuratFile').value = ''; 
+                currentKopSuratFileData = null; 
+            }
+        }
+
+        document.getElementById('kopSuratFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                if (!document.getElementById('kopSourceUpload').checked) {
+                    event.target.value = ""; return;
+                }
+                if (file.size > 1 * 1024 * 1024) {
+                    document.getElementById('kopSuratMessage').innerText = "Ukuran file maksimal 1MB.";
+                    document.getElementById('kopSuratMessage').className = "message error";
+                    event.target.value = ""; return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentKopSuratFileData = { dataUrl: e.target.result, name: file.name };
+                    document.getElementById('kopSuratPreview').src = e.target.result;
+                    document.getElementById('kopSuratPreview').style.display = 'block';
+                    document.getElementById('noKopSuratMessage').style.display = 'none';
+                    document.getElementById('kopSuratMessage').innerText = "";
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        function isValidHttpUrl(string) {
+          let url;
+          try {
+            console.log("Mencoba memvalidasi URL:", string);
+            url = new URL(string);
+            console.log("Objek URL berhasil dibuat:", url);
+            return url.protocol === "http:" || url.protocol === "https:";
+          } catch (e) {
+            console.error("Error saat membuat objek URL:", e);
+            console.error("String URL yang gagal divalidasi:", string);
+            alert("DEBUG: Terjadi kegagalan pada konstruktor new URL().\n\nURL yang diuji: " + string + "\n\nPesan Error: " + e.message + "\n\nSilakan cek Developer Console (F12) untuk detail lebih lanjut.");
+            return false;
+          }
+        }
+
+        function handleUploadKopSurat() {
+            const btn = document.getElementById('uploadKopSuratButton');
+            const msgEl = document.getElementById('kopSuratMessage');
+            msgEl.innerText = ""; msgEl.className = "message";
+
+            const settings = {
+                width: document.getElementById('kopSuratWidth').value || '100%',
+                height: 'auto', // Bisa ditambahkan input height jika diperlukan
+                alignment: document.getElementById('kopSuratAlignment').value || 'center'
+            };
+
+            const isUploadMode = document.getElementById('kopSourceUpload').checked;
+            const imageUrlFromInput = document.getElementById('kopSuratImageUrl').value;
+            let kopSuratPayload = { settings: settings };
+            let operationPerformed = false;
+
+            if (isUploadMode) {
+                if (currentKopSuratFileData) {
+                    kopSuratPayload.type = 'upload';
+                    kopSuratPayload.dataUrl = currentKopSuratFileData.dataUrl;
+                    kopSuratPayload.fileName = currentKopSuratFileData.name;
+                    operationPerformed = true;
+                }
+            } else { 
+                const trimmedImageUrl = imageUrlFromInput.trim();
+                if (trimmedImageUrl !== '') {
+                    if (!isValidHttpUrl(trimmedImageUrl)) {
+                        msgEl.innerText = "URL gambar tidak valid. Harap gunakan URL lengkap (http:// atau https://) dan pastikan tidak ada spasi ekstra.";
+                        msgEl.className = "message error";
+                        return;
+                    }
+                    kopSuratPayload.type = 'url';
+                    kopSuratPayload.imageUrl = trimmedImageUrl;
+                    operationPerformed = true;
+                }
+            }
+
+            if (!operationPerformed && !kopSuratPayload.settings) {
+                 msgEl.innerText = "Tidak ada perubahan untuk disimpan.";
+                 msgEl.className = "message info";
+                 return;
+            }
+            if (!operationPerformed && kopSuratPayload.settings) { 
+                btn.disabled = true; btn.innerText = "Menyimpan Pengaturan...";
+                google.script.run
+                    .withSuccessHandler(getSuccessHandlerForSaveSettings(msgEl, btn))
+                    .withFailureHandler(getFailureHandlerForSaveSettings(msgEl, btn))
+                    .saveKopSuratSettings(settings);
+                return;
+            }
+
+            btn.disabled = true; btn.innerText = kopSuratPayload.type === 'upload' ? "Mengupload..." : "Memproses URL...";
+            
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    msgEl.innerText = response.message;
+                    msgEl.className = response.status === 'success' ? "message success" : (response.status === 'info' ? "message info" : "message error");
+                    btn.disabled = false; btn.innerText = "Simpan Kop & Pengaturan";
+                    if (response.status === 'success') {
+                        currentKopSuratFileData = null;
+                        document.getElementById('kopSuratFile').value = "";
+                        document.getElementById('kopSuratImageUrl').value = ""; 
+                        google.script.run.withSuccessHandler(function(data){ 
+                            if (data.currentKopSurat) displayCurrentKopSuratInfo(data.currentKopSurat); 
+                        }).getInitialDashboardData();
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    msgEl.innerText = "Error: " + error.message; msgEl.className = "message error";
+                    btn.disabled = false; btn.innerText = "Simpan Kop & Pengaturan";
+                })
+                .updateKopSuratSource(kopSuratPayload);
+        }
+
+        function getSuccessHandlerForSaveSettings(msgEl, btn) {
+            return function(response) {
+                msgEl.innerText = response.message;
+                msgEl.className = response.status === 'success' ? "message success" : "message error";
+                btn.disabled = false; btn.innerText = "Simpan Kop & Pengaturan";
+                if (response.status === 'success') {
+                    google.script.run.withSuccessHandler(function(data){ 
+                        if (data.currentKopSurat) displayCurrentKopSuratInfo(data.currentKopSurat); 
+                    }).getInitialDashboardData();
+                }
+            };
+        }
+        function getFailureHandlerForSaveSettings(msgEl, btn) {
+            return function(error) {
+                msgEl.innerText = "Error menyimpan pengaturan: " + error.message; msgEl.className = "message error";
+                btn.disabled = false; btn.innerText = "Simpan Kop & Pengaturan";
+            };
+        }
+        
+        function displayCurrentKopSuratInfo(kopSuratData) {
+            const previewImg = document.getElementById('kopSuratPreview');
+            const noKopMsg = document.getElementById('noKopSuratMessage');
+            const widthInput = document.getElementById('kopSuratWidth');
+            const alignmentSelect = document.getElementById('kopSuratAlignment');
+
+            if (kopSuratData && kopSuratData.url) {
+                let previewUrl = kopSuratData.url;
+                if (kopSuratData.sourceType === 'drive') {
+                     previewUrl += (kopSuratData.url.includes('?') ? '&ts=' : '?ts=') + new Date().getTime();
+                }
+                previewImg.src = previewUrl;
+                previewImg.style.display = 'block';
+                noKopMsg.style.display = 'none';
+            } else {
+                previewImg.src = '#';
+                previewImg.style.display = 'none';
+                noKopMsg.style.display = 'block';
+            }
+            widthInput.value = kopSuratData.width || '100%';
+            alignmentSelect.value = kopSuratData.alignment || 'center';
+
+            if (kopSuratData.sourceType === 'url' && kopSuratData.sourceValue) {
+                document.getElementById('kopSuratImageUrl').value = kopSuratData.sourceValue;
+                document.getElementById('kopSourceUrl').checked = true;
+            } else {
+                document.getElementById('kopSourceUpload').checked = true;
+                 if (kopSuratData.sourceType !== 'url') document.getElementById('kopSuratImageUrl').value = '';
+            }
+            toggleKopSuratInput();
+        }
+
+        function handleDeleteKopSurat() {
+            if (!confirm("Apakah Anda yakin ingin menghapus kop surat saat ini?")) return;
+            const btn = document.getElementById('deleteKopSuratButton');
+            const msgEl = document.getElementById('kopSuratMessage');
+            msgEl.innerText = ""; btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    msgEl.innerText = response.message;
+                    msgEl.className = response.status === 'success' ? "message success" : (response.status === 'info' ? 'message warning' : 'message error');
+                    btn.disabled = false;
+                    if (response.status === 'success') {
+                        displayCurrentKopSuratInfo({}); 
+                        currentKopSuratFileData = null;
+                        document.getElementById('kopSuratFile').value = "";
+                        document.getElementById('kopSuratImageUrl').value = "";
+                         document.getElementById('kopSourceUpload').checked = true;
+                         toggleKopSuratInput();
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    msgEl.innerText = "Error: " + error.message; msgEl.className = "message error";
+                    btn.disabled = false;
+                })
+                .deleteKopSuratImage();
+        }
+
+        function handleAddEntry() {
+            const btn = document.getElementById('addEntryButton');
+            const msg = document.getElementById('addEntryMessage');
+            msg.innerText = "";
+            const entryData = {
+                dateOfActivity: document.getElementById('dateOfActivity').value,
+                description: document.getElementById('description').value,
+                output: document.getElementById('output').value,
+                volume: document.getElementById('volume').value
+            };
+            if (!entryData.dateOfActivity||!entryData.description||!entryData.output||!entryData.volume) { msg.innerText = "Semua field harus diisi!"; msg.className = "message error"; return; }
+            btn.disabled = true; btn.innerText = "Menyimpan...";
+            google.script.run.withSuccessHandler(function(response) {
+                msg.innerText = response.message;
+                msg.className = response.status === 'success' ? "message success" : "message " + (response.status === 'warning' ? 'warning' : 'error');
+                if (response.status === 'success') { ['dateOfActivity', 'description', 'output', 'volume'].forEach(id => document.getElementById(id).value = '');}
+                btn.disabled = false; btn.innerText = "Tambah Kegiatan";
+                if (response.status === 'success') handleGenerateReport();
+            }).withFailureHandler(function(error) { msg.innerText = "Error: " + error.message; msg.className = "message error"; btn.disabled = false; btn.innerText = "Tambah Kegiatan";}).addLkhEntry(entryData);
+        }
+
+        function handleAddRecurringEntry() {
+            const btn = document.getElementById('addRecurringEntryButton');
+            const msg = document.getElementById('addRecurringEntryMessage');
+            msg.innerText = "";
+            const recurringData = {
+                monthYear: document.getElementById('recurringMonthYear').value,
+                dayOfWeek: parseInt(document.getElementById('recurringDayOfWeek').value),
+                description: document.getElementById('recurringDescription').value,
+                output: document.getElementById('recurringOutput').value,
+                volume: document.getElementById('recurringVolume').value
+            };
+            if (!recurringData.monthYear||isNaN(recurringData.dayOfWeek)||!recurringData.description||!recurringData.output||!recurringData.volume) { msg.innerText = "Semua field harus diisi dengan benar!"; msg.className = "message error"; return; }
+            btn.disabled = true; btn.innerText = "Menyimpan...";
+            google.script.run.withSuccessHandler(function(response) {
+                msg.innerText = response.message;
+                msg.className = response.status === 'success' || response.status === 'info' ? "message success" : "message error";
+                if (response.status === 'success' || response.status === 'info') { ['recurringDescription', 'recurringOutput', 'recurringVolume'].forEach(id => document.getElementById(id).value = '');}
+                btn.disabled = false; btn.innerText = "Simpan Kegiatan Berulang";
+                 if (response.status === 'success') handleGenerateReport();
+            }).withFailureHandler(function(error) { msg.innerText = "Error: " + error.message; msg.className = "message error"; btn.disabled = false; btn.innerText = "Simpan Kegiatan Berulang"; }).addRecurringLkhEntries(recurringData);
+        }
+        
+        function handleGenerateReport() {
+            const monthYear = document.getElementById('reportMonth').value;
+            const btn = document.getElementById('generateReportButton');
+            const printBtn = document.getElementById('printReportButton');
+            const display = document.getElementById('reportDisplay');
+            if (!monthYear) { display.innerHTML = "<p style='color:red;'>Pilih bulan dan tahun.</p>"; printBtn.style.display = 'none'; return; }
+            display.innerHTML = "<p>Memuat laporan...</p>";
+            btn.disabled = true; btn.innerText = "Memuat..."; printBtn.style.display = 'none';
+            google.script.run.withSuccessHandler(function(htmlContent) {
+                display.innerHTML = htmlContent;
+                if (htmlContent && !htmlContent.startsWith("<p>Error:") && !htmlContent.includes("Tidak ada data kegiatan untuk periode ini.")) {
+                     printBtn.style.display = 'inline-block';
+                } else {
+                     printBtn.style.display = 'none';
+                }
+                btn.disabled = false; btn.innerText = "Tampilkan Laporan";
+            }).withFailureHandler(function(error) { display.innerHTML = "<p style='color:red;'>Gagal memuat laporan: " + error.message + "</p>"; btn.disabled = false; btn.innerText = "Tampilkan Laporan"; printBtn.style.display = 'none';}).generateReportHtmlForMonth(monthYear);
+        }
+        
+        function printReport() {
+            const reportContent = document.getElementById('reportDisplay').innerHTML;
+            if (reportContent && !reportContent.includes("Tidak ada data kegiatan") && !reportContent.includes("<p>Error:")) {
+                const printWindow = window.open('', '_blank', 'height=800,width=1000');
+                printWindow.document.write(reportContent); 
+                printWindow.document.close(); 
+                printWindow.focus(); 
+                setTimeout(function(){ printWindow.print(); }, 500);
+            } else { alert("Tidak ada laporan valid untuk dicetak."); }
+        }
+
+        function handleLogout() {
+            google.script.run.withSuccessHandler(function(response) { if (response.status === 'success') window.top.location.href = "<?= ScriptApp.getService().getUrl(); ?>"; else alert("Logout gagal."); })
+            .withFailureHandler(function(err){alert("Error saat logout: " + err.message);}).logoutUser();
+        }
+
+        function openEditModal(entryId) {
+            document.getElementById('editEntryMessage').innerText = "";
+            document.getElementById('editEntryId').value = entryId;
+            google.script.run.withSuccessHandler(function(entryDetails) {
+                if (entryDetails && entryDetails.status === 'success' && entryDetails.data) {
+                    const data = entryDetails.data;
+                    const dateObj = new Date(data.dateOfActivity);
+                    document.getElementById('editDateOfActivity').value = dateObj.getFullYear() + '-' + ('0' + (dateObj.getMonth() + 1)).slice(-2) + '-' + ('0' + dateObj.getDate()).slice(-2);
+                    document.getElementById('editDescription').value = data.description;
+                    document.getElementById('editOutput').value = data.output;
+                    document.getElementById('editVolume').value = data.volume;
+                    editModal.style.display = 'block';
+                } else { alert(entryDetails.message || "Gagal mengambil data."); }
+            }).withFailureHandler(function(error) { alert("Error mengambil detail: " + error.message); }).getLkhEntryDetails(entryId);
+        }
+        function closeEditModal() { editModal.style.display = 'none'; }
+        function handleSaveChanges() {
+            const entryId = document.getElementById('editEntryId').value;
+            const msg = document.getElementById('editEntryMessage');
+            const updatedData = {
+                dateOfActivity: document.getElementById('editDateOfActivity').value,
+                description: document.getElementById('editDescription').value,
+                output: document.getElementById('editOutput').value,
+                volume: document.getElementById('editVolume').value
+            };
+            if (!updatedData.dateOfActivity||!updatedData.description||!updatedData.output||!updatedData.volume) { msg.innerText = "Semua field harus diisi!"; msg.className = "message error"; return; }
+            msg.innerText = "Menyimpan..."; msg.className = "message";
+            google.script.run.withSuccessHandler(function(response) {
+                msg.innerText = response.message;
+                if (response.status === 'success') {
+                    msg.className = "message success";
+                    setTimeout(function() { closeEditModal(); handleGenerateReport(); }, 1000); 
+                } else { msg.className = "message error"; }
+            }).withFailureHandler(function(error) { msg.innerText = "Error: " + error.message; msg.className = "message error";}).updateLkhEntry(entryId, updatedData);
+        }
+        window.onclick = function(event) { if (event.target == editModal) closeEditModal(); }
+
+        function confirmDeleteEntry(entryId) {
+            if (confirm("Apakah Anda yakin ingin menghapus kegiatan ini?")) {
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        alert(response.message);
+                        if (response.status === 'success') handleGenerateReport();
+                    })
+                    .withFailureHandler(function(error) { alert("Error menghapus kegiatan: " + error.message); })
+                    .deleteLkhEntry(entryId);
+            }
+        }
+
+        function handleMoveEntryOrder(entryId, direction) {
+            const reportDisplay = document.getElementById('reportDisplay');
+            const originalContent = reportDisplay.innerHTML; 
+            reportDisplay.innerHTML = "<p>Mengubah urutan...</p>";
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    alert(response.message); 
+                    if (response.status === 'success') handleGenerateReport();
+                    else reportDisplay.innerHTML = originalContent; 
+                })
+                .withFailureHandler(function(error) {
+                    alert("Error saat mengubah urutan: " + error.message);
+                    reportDisplay.innerHTML = originalContent; 
+                })
+                .moveLkhEntryOrder(entryId, direction);
+        }
+    </script>
+</body>
+</html>
