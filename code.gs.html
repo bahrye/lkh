@@ -1,0 +1,796 @@
+// Global constants for sheet names
+const SCHOOLS_SHEET_NAME = "Schools";
+const TEACHERS_SHEET_NAME = "Teachers";
+const LKH_ENTRIES_SHEET_NAME = "LKH_Entries";
+const KOP_SURAT_FOLDER_ID = "1uDxtZBTN5XthOsfXY3HfxvkhvWlyIbga"; // Ganti dengan ID Folder Drive Anda
+
+// --- Web App Entry Point ---
+function doGet(e) {
+  if (!checkUserSession()) {
+    return HtmlService.createTemplateFromFile('Login').evaluate()
+      .setTitle('LKH Login')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+  return HtmlService.createTemplateFromFile('Index').evaluate()
+    .setTitle('LKH Dashboard')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// --- User Authentication (Tidak ada perubahan) ---
+function loginUser(email, password) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const teacherSheet = ss.getSheetByName(TEACHERS_SHEET_NAME);
+    const data = teacherSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][3] === email && data[i][4] === password) {
+        const userProperties = PropertiesService.getUserProperties();
+        userProperties.setProperty('teacherId', data[i][0]); 
+        userProperties.setProperty('fullName', data[i][1]);
+        userProperties.setProperty('schoolId', data[i][5]);
+        return { status: 'success', teacherId: data[i][0] };
+      }
+    }
+    return { status: 'error', message: 'Email atau Password salah.' };
+  } catch (err) {
+    Logger.log("Error in loginUser: " + err.message + " Stack: " + err.stack);
+    return { status: 'error', message: 'Error server saat login: ' + err.message };
+  }
+}
+
+function logoutUser() {
+  PropertiesService.getUserProperties().deleteAllProperties();
+  return { status: 'success' };
+}
+
+function checkUserSession() {
+  const userProperties = PropertiesService.getUserProperties();
+  return userProperties.getProperty('teacherId') !== null;
+}
+
+// --- Data Fetching ---
+function getLoggedInUserDetails() {
+  if (!checkUserSession()) return null;
+  const userProperties = PropertiesService.getUserProperties();
+  const teacherId = userProperties.getProperty('teacherId');
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const teacherSheet = ss.getSheetByName(TEACHERS_SHEET_NAME);
+    const data = teacherSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === teacherId) {
+        return {
+          teacherId: data[i][0], fullName: data[i][1], nip: data[i][2],
+          email: data[i][3], schoolId: data[i][5], mainDuty: data[i][6],
+          mataPelajaran: data[i][7] || ''
+        };
+      }
+    }
+  } catch (err) {
+    Logger.log("Error in getLoggedInUserDetails: " + err.message + " Stack: " + err.stack);
+  }
+  return null;
+}
+
+// MODIFIKASI: Menambahkan pembacaan type_KepalaMadrasah
+function getSchoolDetailsForCurrentUser() {
+  const userDetails = getLoggedInUserDetails();
+  if (!userDetails || !userDetails.schoolId) return null;
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const schoolSheet = ss.getSheetByName(SCHOOLS_SHEET_NAME);
+    const data = schoolSheet.getDataRange().getValues();
+    const header = data[0];
+
+    const schoolIdColIdx = 0;
+    const schoolNameColIdx = header.indexOf("SchoolName") > -1 ? header.indexOf("SchoolName") : 1;
+    const foundationNameColIdx = header.indexOf("FoundationName") > -1 ? header.indexOf("FoundationName") : 2;
+    const schoolAddressColIdx = header.indexOf("SchoolAddress") > -1 ? header.indexOf("SchoolAddress") : 3;
+    const headmasterNameColIdx = header.indexOf("HeadmasterName") > -1 ? header.indexOf("HeadmasterName") : 4;
+    const headmasterNIPColIdx = header.indexOf("HeadmasterNIP") > -1 ? header.indexOf("HeadmasterNIP") : 5;
+    
+    const kopSuratSourceValueColIdx = header.indexOf("KopSuratSourceValue") > -1 ? header.indexOf("KopSuratSourceValue") : 6;
+    const kopSuratSourceTypeColIdx = header.indexOf("KopSuratSourceType") > -1 ? header.indexOf("KopSuratSourceType") : 7;
+    const kopSuratWidthColIdx = header.indexOf("KopSuratWidth") > -1 ? header.indexOf("KopSuratWidth") : 8;
+    const kopSuratHeightColIdx = header.indexOf("KopSuratHeight") > -1 ? header.indexOf("KopSuratHeight") : 9;
+    const kopSuratAlignmentColIdx = header.indexOf("KopSuratAlignment") > -1 ? header.indexOf("KopSuratAlignment") : 10;
+    // BARU: Indeks untuk type_KepalaMadrasah
+    const typeKepalaMadrasahColIdx = header.indexOf("type_KepalaMadrasah") > -1 ? header.indexOf("type_KepalaMadrasah") : 11; // Asumsi kolom L (indeks 11)
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][schoolIdColIdx] === userDetails.schoolId) {
+        const sourceValue = data[i][kopSuratSourceValueColIdx] || null;
+        const sourceType = data[i][kopSuratSourceTypeColIdx] || (sourceValue ? 'drive' : null); 
+        
+        return {
+          schoolId: data[i][schoolIdColIdx],
+          schoolName: data[i][schoolNameColIdx],
+          foundationName: data[i][foundationNameColIdx],
+          schoolAddress: data[i][schoolAddressColIdx],
+          headmasterName: data[i][headmasterNameColIdx],
+          headmasterNIP: data[i][headmasterNIPColIdx],
+          typeKepalaMadrasah: data[i][typeKepalaMadrasahColIdx] || 'Kepala Madrasah', // BARU: Baca & default jika kosong
+          
+          _rawKopSuratSourceValue: sourceValue,
+          _rawKopSuratSourceType: sourceType,
+          _rawKopSuratWidth: data[i][kopSuratWidthColIdx] || '100%',
+          _rawKopSuratHeight: data[i][kopSuratHeightColIdx] || 'auto',
+          _rawKopSuratAlignment: data[i][kopSuratAlignmentColIdx] || 'center'
+        };
+      }
+    }
+  } catch (err) {
+    Logger.log("Error in getSchoolDetailsForCurrentUser: " + err.message + " Stack: " + err.stack);
+  }
+  return null;
+}
+
+function getInitialDashboardData() {
+  const user = getLoggedInUserDetails();
+  const schoolDetails = getSchoolDetailsForCurrentUser(); 
+  // schoolDetails sekarang memiliki typeKepalaMadrasah, tapi tidak digunakan di dashboard utama ini.
+  
+  let currentKopSuratViewData = {
+    sourceValue: null, url: null, width: '100%', height: 'auto', alignment: 'center', sourceType: null
+  };
+
+  if (schoolDetails) {
+    const sourceValue = schoolDetails._rawKopSuratSourceValue;
+    const sourceType = schoolDetails._rawKopSuratSourceType;
+    currentKopSuratViewData.sourceValue = sourceValue;
+    currentKopSuratViewData.sourceType = sourceType;
+    currentKopSuratViewData.width = schoolDetails._rawKopSuratWidth;
+    currentKopSuratViewData.height = schoolDetails._rawKopSuratHeight;
+    currentKopSuratViewData.alignment = schoolDetails._rawKopSuratAlignment;
+    if (sourceValue) {
+      if (sourceType === 'url') currentKopSuratViewData.url = sourceValue;
+      else if (sourceType === 'drive') {
+        try { currentKopSuratViewData.url = `https://drive.google.com/uc?export=view&id=${sourceValue}`; } 
+        catch (e) { Logger.log("Gagal verify ID kop surat: " + sourceValue + "; Error: " + e.message); currentKopSuratViewData.url = null; }
+      }
+    }
+  }
+  
+  let finalSchoolDetails = {...schoolDetails};
+  delete finalSchoolDetails._rawKopSuratSourceValue; // Hapus properti mentah
+  delete finalSchoolDetails._rawKopSuratSourceType;
+  delete finalSchoolDetails._rawKopSuratWidth;
+  delete finalSchoolDetails._rawKopSuratHeight;
+  delete finalSchoolDetails._rawKopSuratAlignment;
+
+  return { user: user, school: finalSchoolDetails, currentKopSurat: currentKopSuratViewData };
+}
+
+// --- LKH Entry Management (Tidak ada perubahan di sini) ---
+// ... (fungsi getNextOrderInDay, checkDuplicateLkhEntry, addLkhEntry, addRecurringLkhEntries, getLkhEntriesForMonth)
+// ... (fungsi deleteLkhEntry, getLkhEntryDetails, updateLkhEntry, moveLkhEntryOrder)
+// --- FUNGSI LKH DI ATAS TETAP SAMA SEPERTI SEBELUMNYA ---
+function getNextOrderInDay(sheet, teacherId, dateOfActivity) {
+  const data = sheet.getDataRange().getValues();
+  let maxOrder = 0;
+  const targetDateStr = Utilities.formatDate(new Date(dateOfActivity), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][1] || !data[i][2]) continue;
+    if (data[i][1] === teacherId) {
+      const entryDate = new Date(data[i][2]);
+      if (isNaN(entryDate.getTime())) continue;
+      const entryDateStr = Utilities.formatDate(entryDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      if (entryDateStr === targetDateStr) {
+        const currentOrder = parseInt(data[i][8]); // OrderInDay di kolom I (indeks 8)
+        if (!isNaN(currentOrder) && currentOrder > maxOrder) {
+          maxOrder = currentOrder;
+        }
+      }
+    }
+  }
+  return maxOrder + 1;
+}
+
+function checkDuplicateLkhEntry(teacherId, dateOfActivity, description, output, volume) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    const inputDateStr = Utilities.formatDate(new Date(dateOfActivity), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    for (let i = 1; i < data.length; i++) {
+      if (!data[i][1] || !data[i][2]) continue;
+      if (data[i][1] === teacherId) {
+        const sheetDate = new Date(data[i][2]);
+        if (isNaN(sheetDate.getTime())) continue;
+        const sheetDateStr = Utilities.formatDate(sheetDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        if (sheetDateStr === inputDateStr &&
+            String(data[i][4] || '') === String(description || '') &&
+            String(data[i][5] || '') === String(output || '') &&
+            String(data[i][6] || '') === String(volume || '')) {
+          Logger.log("Duplicate found: Row " + (i+1) + " matches input for date " + inputDateStr);
+          return true;
+        }
+      }
+    }
+  } catch (e) {
+    Logger.log("Error in checkDuplicateLkhEntry: " + e.toString() + " Stack: " + e.stack);
+    return false;
+  }
+  return false;
+}
+
+function addLkhEntry(entryData) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  const dateOfActivity = new Date(entryData.dateOfActivity);
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const dayName = days[dateOfActivity.getDay()];
+
+  if (checkDuplicateLkhEntry(userDetails.teacherId, dateOfActivity, entryData.description, entryData.output, entryData.volume)) {
+    return { status: 'warning', message: 'Kegiatan yang sama persis sudah ada pada tanggal ini dan tidak ditambahkan lagi.' };
+  }
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lkhSheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const newEntryId = "LKH" + new Date().getTime();
+    const orderInDay = getNextOrderInDay(lkhSheet, userDetails.teacherId, dateOfActivity);
+    lkhSheet.appendRow([
+      newEntryId, userDetails.teacherId, dateOfActivity, dayName,
+      entryData.description, entryData.output, entryData.volume, new Date(), orderInDay
+    ]);
+    return { status: 'success', message: 'Data LKH berhasil ditambahkan.' };
+  } catch (err) {
+    Logger.log("Error in addLkhEntry: " + err.message + " Stack: " + err.stack);
+    return { status: 'error', message: 'Gagal menyimpan data: ' + err.message };
+  }
+}
+
+function addRecurringLkhEntries(recurringData) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lkhSheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const [yearStr, monthStr] = recurringData.monthYear.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+    const targetDayOfWeek = recurringData.dayOfWeek;
+    const daysInIndonesian = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    let entriesAddedCount = 0;
+    let entriesSkippedCount = 0;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const currentDate = new Date(year, month, day);
+      if (currentDate.getDay() === targetDayOfWeek) {
+        if (checkDuplicateLkhEntry(userDetails.teacherId, currentDate, recurringData.description, recurringData.output, recurringData.volume)) {
+          entriesSkippedCount++;
+          continue;
+        }
+        const newEntryId = "LKHREC" + currentDate.getTime() + "_" + targetDayOfWeek;
+        const dayName = daysInIndonesian[currentDate.getDay()];
+        const orderInDay = getNextOrderInDay(lkhSheet, userDetails.teacherId, currentDate);
+        lkhSheet.appendRow([
+          newEntryId, userDetails.teacherId, currentDate, dayName,
+          recurringData.description, recurringData.output, recurringData.volume, new Date(), orderInDay
+        ]);
+        entriesAddedCount++;
+      }
+    }
+    let message = "";
+    if (entriesAddedCount > 0) message += entriesAddedCount + ' kegiatan berulang berhasil ditambahkan. ';
+    if (entriesSkippedCount > 0) message += entriesSkippedCount + ' kegiatan dilewati karena sudah ada entri yang sama persis.';
+    if (message === "") message = 'Tidak ada hari ' + daysInIndonesian[targetDayOfWeek] + ' yang ditemukan atau semua kegiatan yang cocok sudah ada.';
+    return { status: (entriesAddedCount > 0 ? 'success' : 'info'), message: message.trim() };
+  } catch (err) {
+    Logger.log("Error in addRecurringLkhEntries: " + err.message + " Stack: " + err.stack);
+    return { status: 'error', message: 'Gagal menyimpan kegiatan berulang: ' + err.message };
+  }
+}
+
+function getLkhEntriesForMonth(monthYear) {
+  if (!checkUserSession()) return [];
+  const userDetails = getLoggedInUserDetails();
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lkhSheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = lkhSheet.getDataRange().getValues();
+    const entries = [];
+    const [year, month] = monthYear.split('-').map(Number);
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i].length < 9) continue; 
+      if (data[i][1] === userDetails.teacherId) {
+        const activityDateRaw = data[i][2];
+        if (!activityDateRaw) { Logger.log("Skipping row " + (i+1) + " due to empty date."); continue; }
+        const activityDate = new Date(activityDateRaw);
+        if (isNaN(activityDate.getTime())) { Logger.log("Skipping row " + (i+1) + " due to invalid date: " + activityDateRaw); continue; }
+        if (activityDate.getFullYear() === year && (activityDate.getMonth() + 1) === month) {
+          const description = (data[i][4] === null || data[i][4] === undefined) ? "" : String(data[i][4]);
+          const output = (data[i][5] === null || data[i][5] === undefined) ? "" : String(data[i][5]);
+          const volume = (data[i][6] === null || data[i][6] === undefined) ? "" : String(data[i][6]);
+          const orderInDayVal = (data[i][8] === null || data[i][8] === undefined || data[i][8] === "") ? 0 : parseInt(data[i][8]);
+          entries.push({
+            entryId: String(data[i][0] || ''), teacherId: String(data[i][1] || ''),
+            dateOfActivity: Utilities.formatDate(activityDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+            dayOfActivity: String(data[i][3] || ''), description: description,
+            output: output, volume: volume,
+            submissionTimestamp: data[i][7] ? new Date(data[i][7]).toISOString() : '',
+            orderInDay: orderInDayVal
+          });
+        }
+      }
+    }
+    entries.sort((a, b) => {
+        const dateComparison = new Date(a.dateOfActivity) - new Date(b.dateOfActivity);
+        if (dateComparison !== 0) return dateComparison;
+        return a.orderInDay - b.orderInDay;
+    });
+    return entries;
+  } catch (err) {
+    Logger.log("Error in getLkhEntriesForMonth: " + err.message + " Stack: " + err.stack);
+    return [];
+  }
+}
+
+function deleteLkhEntry(entryId) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid. Silakan login ulang.' };
+  const userDetails = getLoggedInUserDetails();
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    let rowToDelete = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === entryId) {
+        if (data[i][1] !== userDetails.teacherId) return { status: 'error', message: 'Tidak diizinkan menghapus entri ini.' };
+        rowToDelete = i + 1;
+        break;
+      }
+    }
+    if (rowToDelete > -1) {
+      sheet.deleteRow(rowToDelete);
+      return { status: 'success', message: 'Kegiatan berhasil dihapus.' };
+    }
+    return { status: 'error', message: 'Kegiatan tidak ditemukan.' };
+  } catch (e) {
+    Logger.log('Error deleting entry: ' + e.toString() + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal menghapus kegiatan: ' + e.message };
+  }
+}
+
+function getLkhEntryDetails(entryId) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === entryId) {
+        if (data[i][1] !== userDetails.teacherId) return { status: 'error', message: 'Tidak diizinkan mengakses entri ini.' };
+        return { status: 'success', data: {
+            entryId: data[i][0], dateOfActivity: new Date(data[i][2]),
+            description: String(data[i][4] || ''), output: String(data[i][5] || ''),
+            volume: String(data[i][6] || '')
+          }};
+      }
+    }
+    return { status: 'error', message: 'Entri tidak ditemukan.' };
+  } catch (e) {
+    Logger.log('Error getLkhEntryDetails: ' + e.toString() + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal mengambil detail entri: ' + e.message };
+  }
+}
+
+function updateLkhEntry(entryId, updatedData) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    let rowIndex = -1; 
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === entryId) {
+        if (data[i][1] !== userDetails.teacherId) return { status: 'error', message: 'Tidak diizinkan memperbarui entri ini.' };
+        rowIndex = i;
+        break;
+      }
+    }
+    if (rowIndex === -1) return { status: 'error', message: 'Entri tidak ditemukan untuk diperbarui.' };
+    
+    const sheetRow = rowIndex + 1;
+    const dateOfActivity = new Date(updatedData.dateOfActivity);
+    const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const dayName = days[dateOfActivity.getDay()];
+
+    const oldDateStr = Utilities.formatDate(new Date(data[rowIndex][2]), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    const newDateStr = Utilities.formatDate(dateOfActivity, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    let newOrderInDay = parseInt(data[rowIndex][8]); 
+
+    if (oldDateStr !== newDateStr) {
+        newOrderInDay = getNextOrderInDay(sheet, userDetails.teacherId, dateOfActivity);
+    }
+
+    sheet.getRange(sheetRow, 3).setValue(dateOfActivity);
+    sheet.getRange(sheetRow, 4).setValue(dayName);
+    sheet.getRange(sheetRow, 5).setValue(updatedData.description);
+    sheet.getRange(sheetRow, 6).setValue(updatedData.output);
+    sheet.getRange(sheetRow, 7).setValue(updatedData.volume);
+    sheet.getRange(sheetRow, 9).setValue(newOrderInDay);
+
+    return { status: 'success', message: 'Kegiatan berhasil diperbarui.' };
+  } catch (e) {
+    Logger.log('Error updateLkhEntry: ' + e.toString() + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal memperbarui kegiatan: ' + e.message };
+  }
+}
+
+function moveLkhEntryOrder(entryId, direction) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    let entryToMove = null;
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === entryId) {
+        if (data[i][1] !== userDetails.teacherId) return { status: 'error', message: 'Tidak diizinkan mengubah entri ini.' };
+        entryToMove = {
+          id: data[i][0], dateOfActivity: new Date(data[i][2]),
+          order: (data[i][8] === null || data[i][8] === undefined || data[i][8] === "") ? 0 : parseInt(data[i][8]),
+          sheetRow: i + 1
+        };
+        break;
+      }
+    }
+    if (!entryToMove) return { status: 'error', message: 'Entri tidak ditemukan.' };
+
+    const targetDateStr = Utilities.formatDate(entryToMove.dateOfActivity, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    let sameDayEntries = [];
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] === userDetails.teacherId) {
+        const currentDate = new Date(data[i][2]);
+        if (isNaN(currentDate.getTime())) continue;
+        const currentDateStr = Utilities.formatDate(currentDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        if (currentDateStr === targetDateStr) {
+          sameDayEntries.push({
+            id: data[i][0],
+            order: (data[i][8] === null || data[i][8] === undefined || data[i][8] === "") ? 0 : parseInt(data[i][8]),
+            sheetRow: i + 1
+          });
+        }
+      }
+    }
+    sameDayEntries.sort((a, b) => a.order - b.order);
+    const currentIndexInDay = sameDayEntries.findIndex(e => e.id === entryToMove.id);
+    let entryToSwapWith = null;
+
+    if (direction === 'up') {
+      if (currentIndexInDay > 0) entryToSwapWith = sameDayEntries[currentIndexInDay - 1];
+      else return { status: 'info', message: 'Kegiatan sudah di urutan paling atas.' };
+    } else if (direction === 'down') {
+      if (currentIndexInDay < sameDayEntries.length - 1) entryToSwapWith = sameDayEntries[currentIndexInDay + 1];
+      else return { status: 'info', message: 'Kegiatan sudah di urutan paling bawah.' };
+    } else { return { status: 'error', message: 'Arah tidak valid.' }; }
+
+    if (entryToSwapWith) {
+      sheet.getRange(entryToMove.sheetRow, 9).setValue(entryToSwapWith.order);
+      sheet.getRange(entryToSwapWith.sheetRow, 9).setValue(entryToMove.order);
+      return { status: 'success', message: 'Urutan kegiatan berhasil diubah.' };
+    }
+    return { status: 'info', message: 'Tidak ada perubahan urutan.' };
+  } catch (e) {
+    Logger.log('Error moveLkhEntryOrder: ' + e.toString() + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal mengubah urutan kegiatan: ' + e.message };
+  }
+}
+
+
+// --- Report Generation (Diperbarui untuk Judul Kepala Madrasah & Garis Bawah Nama) ---
+function generateReportHtmlForMonth(monthYear) {
+  const user = getLoggedInUserDetails(); 
+  const school = getSchoolDetailsForCurrentUser(); // school sekarang memiliki .typeKepalaMadrasah
+  let entries = getLkhEntriesForMonth(monthYear);
+
+  if (!user || !school) {
+    return "<p>Error: Tidak dapat memuat data pengguna atau sekolah.</p>";
+  }
+
+  let reportPeriod = "Data tidak tersedia";
+  let workingDays = 0;
+  let processedEntries = [];
+  
+  if (entries && entries.length > 0) {
+    let uniqueDates = new Set();
+    let groupedByDate = {};
+    entries.forEach(entry => {
+      uniqueDates.add(entry.dateOfActivity);
+      if (!groupedByDate[entry.dateOfActivity]) groupedByDate[entry.dateOfActivity] = [];
+      groupedByDate[entry.dateOfActivity].push(entry);
+    });
+    workingDays = uniqueDates.size;
+    Array.from(uniqueDates).sort().forEach(dateKey => {
+        const dateEntries = groupedByDate[dateKey]; 
+        dateEntries.forEach((entry, index_within_day_group) => {
+            let pEntry = {...entry, 
+                        isFirstInDayGroup: (index_within_day_group === 0),
+                        isLastInDayGroup: (index_within_day_group === dateEntries.length - 1),
+                        groupSize: dateEntries.length,
+                        rowspan: (index_within_day_group === 0) ? dateEntries.length : 0 };
+            processedEntries.push(pEntry);
+        });
+    });
+    if (processedEntries.length > 0) {
+        const firstDate = new Date(processedEntries[0].dateOfActivity);
+        const lastDate = new Date(processedEntries[processedEntries.length - 1].dateOfActivity);
+        reportPeriod = `${firstDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} - ${lastDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} (${workingDays} Hari Kerja)`;
+    }
+  } else if (monthYear) { 
+      const [year, monthNum] = monthYear.split('-');
+      reportPeriod = `Bulan ${new Date(parseInt(year), parseInt(monthNum)-1, 1).toLocaleDateString('id-ID', { month: 'long' })} ${year} (0 Hari Kerja)`;
+  }
+
+  let html = `<html><head><title>LKH Report</title><?!= HtmlService.createHtmlOutputFromFile('Stylesheet').getContent(); ?></head><body>`;
+  html += `<div class="report-container">`;
+
+  let imageUrlForReport = '';
+  if (school && school._rawKopSuratSourceValue) {
+      const sourceVal = school._rawKopSuratSourceValue;
+      const sourceTyp = school._rawKopSuratSourceType || (sourceVal ? 'drive' : null) ; 
+      if (sourceTyp === 'url') imageUrlForReport = sourceVal;
+      else if (sourceTyp === 'drive') imageUrlForReport = `https://drive.google.com/uc?export=view&id=${sourceVal}`;
+  }
+
+  if (imageUrlForReport) {
+      const imageWidth = school._rawKopSuratWidth || '100%';
+      const imageHeight = school._rawKopSuratHeight || 'auto';
+      const imageAlignment = school._rawKopSuratAlignment || 'center';
+      let textAlignStyle = (imageAlignment === 'left') ? 'text-align: left;' : (imageAlignment === 'right') ? 'text-align: right;' : 'text-align: center;';
+      html += `<div class="header" style="${textAlignStyle}"><img src="${imageUrlForReport}" alt="Kop Surat" style="width: ${imageWidth}; height: ${imageHeight}; max-width:100%;"></div>`;
+  } else if (school) {
+      html += `<div class="header"><h2>${school.foundationName || ''}</h2><h3>${school.schoolName || ''}</h3><p>${school.schoolAddress || ''}</p></div>`;
+  } else {
+      html += `<div class="header"><p>Informasi sekolah tidak tersedia.</p></div>`;
+  }
+  html += `<hr/>`;
+  html += `<h4>LAPORAN KINERJA HARIAN (LKH)<br/>GURU DAN TENAGA KEPENDIDIKAN ${school.schoolName || ''}<br/>PEMBELAJARAN TATAP MUKA</h4>`;
+  
+  html += `<table class="info-table">
+             <tr><td>NAMA</td><td>: ${user.fullName || ''}</td></tr>
+             <tr><td>NIP</td><td>: ${user.nip || '-'}</td></tr>
+             <tr><td>TUGAS POKOK</td><td>: ${user.mainDuty || ''}</td></tr>
+             <tr><td>MATA PELAJARAN</td><td>: ${user.mataPelajaran || '-'}</td></tr> 
+             <tr><td>HARI/TANGGAL</td><td>: ${reportPeriod}</td></tr>
+           </table><br/>`;
+
+  html += `<table class="data-table"><thead><tr><th>NO</th><th>HARI/<br/>TANGGAL</th><th>URAIAN KEGIATAN</th><th>HASIL/OUTPUT</th><th>VOL</th><th>PARAF</th><th>AKSI</th></tr></thead><tbody>`;
+
+  if (processedEntries.length === 0) {
+    html += `<tr><td colspan="7" style="text-align:center;">Tidak ada data kegiatan untuk periode ini.</td></tr>`;
+  } else {
+    let currentEntryNumber = 0; 
+    processedEntries.forEach((pEntry) => {
+      html += `<tr>`; 
+      if (pEntry.rowspan > 0) { 
+        currentEntryNumber++;
+        html += `<td rowspan="${pEntry.rowspan}" style="text-align: center; vertical-align: middle;">${currentEntryNumber}</td>`; 
+        html += `<td rowspan="${pEntry.rowspan}" style="text-align: center; vertical-align: middle;">${pEntry.dayOfActivity},<br/>${new Date(pEntry.dateOfActivity).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</td>`; 
+      }
+      html += `<td style="text-align: left; vertical-align: middle;">${pEntry.description ? String(pEntry.description).replace(/\n/g, '<br>') : ''}</td>`;
+      html += `<td style="text-align: left; vertical-align: middle;">${pEntry.output ? String(pEntry.output).replace(/\n/g, '<br>') : ''}</td>`;
+      html += `<td style="text-align: center; vertical-align: middle;">${pEntry.volume ? String(pEntry.volume).replace(/\n/g, '<br>') : ''}</td>`;
+      html += `<td></td>`; 
+      html += `<td style="text-align: left; vertical-align: middle;">`;
+      html += `<button class="action-btn edit-btn" onclick="openEditModal('${pEntry.entryId}')">Edit</button>`;
+      html += `<button class="action-btn delete-btn" onclick="confirmDeleteEntry('${pEntry.entryId}')">Hapus</button>`;
+      if (pEntry.groupSize > 1) { 
+          if (!pEntry.isFirstInDayGroup) html += `<button class="action-btn move-btn" title="Naikkan" onclick="handleMoveEntryOrder('${pEntry.entryId}', 'up')">&uarr;</button>`;
+          if (!pEntry.isLastInDayGroup) html += `${!pEntry.isFirstInDayGroup ? ' ' : ''}<button class="action-btn move-btn" title="Turunkan" onclick="handleMoveEntryOrder('${pEntry.entryId}', 'down')">&darr;</button>`;
+      }
+      html += `</td></tr>`; 
+    });
+  }
+  html += `</tbody></table><br/>`;
+
+  let dateForFooterSignature = (processedEntries.length > 0) ? 
+    new Date(processedEntries[processedEntries.length - 1].dateOfActivity).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) :
+    (monthYear ? new Date(parseInt(monthYear.split('-')[0]), parseInt(monthYear.split('-')[1]), 0).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : 
+    new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }));
+  let locationName = 'Butung'; 
+  if (school.schoolAddress) {
+      const matchLingkungan = school.schoolAddress.match(/Lingkungan\s+([^\s,Kel.]+)/i);
+      locationName = (matchLingkungan && matchLingkungan[1]) ? matchLingkungan[1] : (school.schoolAddress.split(' ')[0] || locationName);
+  }
+
+  // MODIFIKASI: Judul Kepala Madrasah dinamis
+  const headmasterTitle = school.typeKepalaMadrasah || 'Kepala Madrasah'; 
+
+  // Format Nama Guru Pengajar (sudah ada dari sebelumnya)
+  let teacherNameForSignature = user.fullName || 'NAMA GURU';
+  const commaIndex = teacherNameForSignature.indexOf(',');
+  if (commaIndex !== -1) {
+      let namePart = teacherNameForSignature.substring(0, commaIndex);
+      let titlePart = teacherNameForSignature.substring(commaIndex);
+      teacherNameForSignature = namePart.toUpperCase() + titlePart;
+  } else {
+      teacherNameForSignature = teacherNameForSignature.toUpperCase();
+  }
+
+  // MODIFIKASI: Tambahkan <u> untuk garis bawah pada nama
+  html += `<div class="footer-signatures">
+             <div class="signature-block">
+               <p>Mengetahui,<br/>${headmasterTitle}</p>
+               <br/><br/><br/>
+               <p><strong><u>${school.headmasterName || ''}</u></strong></p>
+               <p>NIP. ${school.headmasterNIP || '-'}</p>
+             </div>
+             <div class="signature-block">
+               <p>${locationName}, ${dateForFooterSignature}<br/>Guru Pengajar</p>
+               <br/><br/><br/>
+               <p><strong><u>${teacherNameForSignature}</u></strong></p>
+               <p>NIP. ${user.nip || '-'}</p>
+             </div>
+           </div>`;
+  html += `</div></body></html>`;
+  return html;
+}
+
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+// --- Kop Surat Management (Tidak ada perubahan di sini dari versi terakhir) ---
+// MODIFIKASI: getSchoolRowData diperbarui untuk kolom type_KepalaMadrasahCol
+function getSchoolRowData(schoolId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const schoolSheet = ss.getSheetByName(SCHOOLS_SHEET_NAME);
+  const data = schoolSheet.getDataRange().getValues();
+  // Asumsi: SchoolID(A=0)... Align(K=10), type_KepalaMadrasah(L=11)
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === schoolId) { 
+      return {
+        row: i + 1,
+        sourceValueCol: 7,  // Kolom G
+        sourceTypeCol: 8,   // Kolom H
+        widthCol: 9,        // Kolom I
+        heightCol: 10,      // Kolom J
+        alignCol: 11,       // Kolom K
+        typeKepalaMadrasahCol: 12 // BARU: Kolom L (indeks aktual 11)
+      };
+    }
+  }
+  return null;
+}
+
+function isValidHttpUrl(string) {
+  if (typeof string !== 'string') return false;
+  const regex = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
+  return regex.test(string);
+}
+
+function updateKopSuratSource(kopSuratPayload) {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  if (!userDetails || !userDetails.schoolId) return { status: 'error', message: 'Data pengguna atau sekolah tidak ditemukan.' };
+
+  const schoolId = userDetails.schoolId;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const schoolSheet = ss.getSheetByName(SCHOOLS_SHEET_NAME);
+  const schoolRowData = getSchoolRowData(schoolId);
+
+  if (!schoolRowData) return { status: 'error', message: 'Baris data sekolah tidak ditemukan.' };
+
+  let newSourceValue = null; let newSourceType = null; let displayUrl = null; let message = "";
+
+  try {
+    const oldSchoolDetails = getSchoolDetailsForCurrentUser();
+    const oldSourceValue = oldSchoolDetails ? oldSchoolDetails._rawKopSuratSourceValue : null;
+    const oldSourceType = oldSchoolDetails ? oldSchoolDetails._rawKopSuratSourceType : null;
+
+    if (kopSuratPayload.type === 'upload' || kopSuratPayload.type === 'url') {
+        if (oldSourceValue && oldSourceType === 'drive') {
+            try { DriveApp.getFileById(oldSourceValue).setTrashed(true); } 
+            catch (e) { Logger.log("Gagal hapus file Drive lama (ID: " + oldSourceValue + "): " + e.message); }
+        }
+    }
+    
+    if (kopSuratPayload.type === 'upload' && kopSuratPayload.dataUrl) {
+      const folder = DriveApp.getFolderById(KOP_SURAT_FOLDER_ID);
+      const contentType = kopSuratPayload.dataUrl.substring(5, kopSuratPayload.dataUrl.indexOf(';'));
+      const bytes = Utilities.base64Decode(kopSuratPayload.dataUrl.substr(kopSuratPayload.dataUrl.indexOf('base64,') + 7));
+      const blob = Utilities.newBlob(bytes, contentType, kopSuratPayload.fileName);
+      const driveFile = folder.createFile(blob);
+      driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      newSourceValue = driveFile.getId(); newSourceType = 'drive'; displayUrl = driveFile.getUrl(); 
+      message = "Kop surat berhasil diupload dari file.";
+    } else if (kopSuratPayload.type === 'url' && kopSuratPayload.imageUrl) {
+      const imageUrl = kopSuratPayload.imageUrl.trim();
+      // Logger.log("SERVER: Menerima URL untuk divalidasi: '" + imageUrl + "'"); // Sudah dihapus karena sudah berfungsi
+      if (!isValidHttpUrl(imageUrl)) {
+        // Logger.log("SERVER: isValidHttpUrl sisi server mengembalikan false untuk: '" + imageUrl + "'"); // Sudah dihapus
+        return { status: 'error', message: 'Format URL gambar tidak valid.' };
+      }
+      newSourceValue = imageUrl; newSourceType = 'url'; displayUrl = newSourceValue;
+      message = "Kop surat berhasil menggunakan URL.";
+    }
+
+    if (newSourceValue !== null && newSourceType !== null) {
+      schoolSheet.getRange(schoolRowData.row, schoolRowData.sourceValueCol).setValue(newSourceValue);
+      schoolSheet.getRange(schoolRowData.row, schoolRowData.sourceTypeCol).setValue(newSourceType);
+    } else if (!kopSuratPayload.settings) {
+       return { status: 'info', message: 'Tidak ada sumber baru atau pengaturan untuk diproses.' };
+    }
+
+    if (kopSuratPayload.settings) {
+      schoolSheet.getRange(schoolRowData.row, schoolRowData.widthCol).setValue(kopSuratPayload.settings.width || "100%");
+      schoolSheet.getRange(schoolRowData.row, schoolRowData.alignCol).setValue(kopSuratPayload.settings.alignment || "center");
+      if (kopSuratPayload.settings.height && kopSuratPayload.settings.height.trim() !== "") {
+        schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).setValue(kopSuratPayload.settings.height);
+      } else schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).clearContent();
+      message += (message && newSourceValue !== null ? " " : "") + "Pengaturan berhasil disimpan.";
+    }
+    return { status: 'success', message: message.trim(), sourceValue: newSourceValue, url: displayUrl, sourceType: newSourceType };
+  } catch (e) {
+    Logger.log("Error in updateKopSuratSource: " + e.message + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal memproses kop surat: ' + e.message };
+  }
+}
+
+function deleteKopSuratImage() {
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  if (!userDetails || !userDetails.schoolId) return { status: 'error', message: 'Data pengguna atau sekolah tidak ditemukan.' };
+  try {
+    const schoolId = userDetails.schoolId;
+    const schoolSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SCHOOLS_SHEET_NAME);
+    const schoolRowData = getSchoolRowData(schoolId);
+    if (schoolRowData) {
+      const currentSourceValueCell = schoolSheet.getRange(schoolRowData.row, schoolRowData.sourceValueCol);
+      const currentSourceTypeCell = schoolSheet.getRange(schoolRowData.row, schoolRowData.sourceTypeCol);
+      const currentSourceValue = currentSourceValueCell.getValue();
+      const currentSourceType = currentSourceTypeCell.getValue();
+      if (currentSourceValue) {
+        if (currentSourceType === 'drive' && currentSourceValue) { 
+          try { DriveApp.getFileById(currentSourceValue.toString()).setTrashed(true); } 
+          catch (e) { Logger.log("Gagal hapus file Drive (ID: " + currentSourceValue + "): " + e.message); }
+        }
+        currentSourceValueCell.clearContent(); currentSourceTypeCell.clearContent();
+        schoolSheet.getRange(schoolRowData.row, schoolRowData.widthCol).clearContent();
+        schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).clearContent();
+        schoolSheet.getRange(schoolRowData.row, schoolRowData.alignCol).clearContent();
+        schoolSheet.getRange(schoolRowData.row, schoolRowData.typeKepalaMadrasahCol).clearContent(); // BARU: Bersihkan typeKepalaMadrasah juga
+        return { status: 'success', message: 'Kop surat dan tipe kepala madrasah berhasil dihapus.' };
+      }
+      return { status: 'info', message: 'Tidak ada kop surat untuk dihapus.' };
+    } else return { status: 'error', message: 'Baris data sekolah tidak ditemukan.' };
+  } catch (e) {
+    Logger.log("Error in deleteKopSuratImage: " + e.message + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal menghapus kop surat: ' + e.message };
+  }
+}
+
+function saveKopSuratSettings(settings) { // Fungsi ini juga harus menyimpan typeKepalaMadrasah jika suatu saat diperlukan
+  if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
+  const userDetails = getLoggedInUserDetails();
+  if (!userDetails || !userDetails.schoolId) return { status: 'error', message: 'Data pengguna atau sekolah tidak ditemukan.' };
+  try {
+    const schoolId = userDetails.schoolId;
+    const schoolSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SCHOOLS_SHEET_NAME);
+    const schoolRowData = getSchoolRowData(schoolId);
+    if (schoolRowData) {
+      if (settings.width) schoolSheet.getRange(schoolRowData.row, schoolRowData.widthCol).setValue(settings.width);
+      if (settings.height && settings.height.trim() !== "") schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).setValue(settings.height);
+      else schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).clearContent();
+      if (settings.alignment) schoolSheet.getRange(schoolRowData.row, schoolRowData.alignCol).setValue(settings.alignment);
+      // Jika suatu saat ingin menyimpan typeKepalaMadrasah melalui fungsi ini juga:
+      // if (settings.typeKepalaMadrasah) schoolSheet.getRange(schoolRowData.row, schoolRowData.typeKepalaMadrasahCol).setValue(settings.typeKepalaMadrasah);
+
+      return { status: 'success', message: 'Pengaturan kop surat berhasil disimpan.' };
+    } else return { status: 'error', message: 'Baris data sekolah tidak ditemukan.' };
+  } catch (e) {
+    Logger.log("Error in saveKopSuratSettings: " + e.message + " Stack: " + e.stack);
+    return { status: 'error', message: 'Gagal menyimpan pengaturan: ' + e.message };
+  }
+}
+
+// BARU: Fungsi testUrlServerSide dihapus karena sudah tidak relevan, isValidHttpUrl sudah diubah.
