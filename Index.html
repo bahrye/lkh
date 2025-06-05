@@ -13,13 +13,22 @@
         </header>
 
         <div class="school-info card">
-            <h3>Informasi Sekolah & Guru</h3>
-            <p><strong>Nama Guru:</strong> <span id="teacherName"></span> (<span id="teacherNip"></span>)</p>
-            <p><strong>Tugas Pokok:</strong> <span id="teacherDuty"></span></p>
-            <p><strong>Mata Pelajaran:</strong> <span id="teacherSubject"></span></p> <hr style="margin: 10px 0;">
+            <h3>Informasi Guru & Sekolah</h3>
+            <p><strong>Nama Guru:</strong> <span id="teacherName"></span></p>
+            <label for="inputTeacherDuty">Tugas Pokok:</label>
+            <input type="text" id="inputTeacherDuty" class="teacher-info-input">
+
+            <label for="inputTeacherSubject">Mata Pelajaran:</label>
+            <input type="text" id="inputTeacherSubject" class="teacher-info-input">
+
+            <label for="inputTeacherClass">Kelas:</label>
+            <input type="text" id="inputTeacherClass" class="teacher-info-input">
+
+            <button id="saveTeacherInfoButton" onclick="handleUpdateTeacherInfo()">Simpan Informasi Guru</button>
+            <p id="teacherInfoMessage" class="message" style="margin-top:10px;"></p>
+
+            <hr style="margin: 20px 0;">
             <p><strong>Sekolah:</strong> <span id="schoolName"></span></p>
-            <p><strong>Yayasan:</strong> <span id="foundationName"></span></p>
-            <p><strong>Alamat:</strong> <span id="schoolAddress"></span></p>
         </div>
 
         <div class="kop-surat-management card">
@@ -46,10 +55,14 @@
                     <span id="noKopSuratMessage">Belum ada kop surat terupload atau URL valid.</span>
                 </div>
             </div>
-            <div class="form-grid" style="margin-top:15px;">
+             <div class="form-grid" style="margin-top:15px;">
                 <div>
                     <label for="kopSuratWidth">Lebar Kop Surat (cth: 600px atau 100%):</label>
                     <input type="text" id="kopSuratWidth" placeholder="100%">
+                </div>
+                <div>
+                    <label for="kopSuratHeight">Tinggi Kop Surat (cth: 150px atau auto):</label>
+                    <input type="text" id="kopSuratHeight" placeholder="auto">
                 </div>
                 <div>
                     <label for="kopSuratAlignment">Perataan Kop Surat:</label>
@@ -121,6 +134,34 @@
         let currentKopSuratFileData = null;
         const editModal = document.getElementById('editLkhModal');
 
+        let inactivityTimer;
+        const INACTIVITY_TIMEOUT = 1 * 60 * 1000; 
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(function() {
+                console.log("Inactivity timeout. Logging out.");
+                handleLogout(); 
+            }, INACTIVITY_TIMEOUT);
+        }
+
+        function setupActivityListeners() {
+            resetInactivityTimer(); 
+            window.addEventListener('mousemove', resetInactivityTimer);
+            window.addEventListener('keypress', resetInactivityTimer);
+            window.addEventListener('click', resetInactivityTimer);
+            window.addEventListener('scroll', resetInactivityTimer); 
+        }
+        
+        /*
+        window.addEventListener('beforeunload', function (e) {
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                console.log("beforeunload: Attempting to call server-side logoutUser.");
+                google.script.run.logoutUser(); 
+            }
+        });
+        */
+        
         window.addEventListener('load', function() {
             loadUserDetails();
             const today = new Date();
@@ -131,26 +172,36 @@
                 document.getElementById('recurringMonthYear').value = `${year}-${month}`;
             }
             toggleKopSuratInput();
+            setupActivityListeners(); 
         });
 
         function loadUserDetails() {
             google.script.run.withSuccessHandler(function(details) {
                 if (details && details.user) {
-                    document.getElementById('userInfoName').innerText = details.user.fullName || 'Pengguna';
-                    document.getElementById('teacherName').innerText = details.user.fullName || '-';
-                    document.getElementById('teacherNip').innerText = details.user.nip || '-';
-                    document.getElementById('teacherDuty').innerText = details.user.mainDuty || '-';
-                    document.getElementById('teacherSubject').innerText = details.user.mataPelajaran || '-'; // BARIS BARU
+                    document.getElementById('userInfoName').innerText = details.user.fullName || 'Pengguna'; // Untuk header
+                    document.getElementById('teacherName').innerText = details.user.fullName || '-'; // Nama Guru (Display only)
+
+                    // Mengisi input fields
+                    document.getElementById('inputTeacherDuty').value = details.user.mainDuty || '';
+                    document.getElementById('inputTeacherSubject').value = details.user.mataPelajaran || '';
+                    document.getElementById('inputTeacherClass').value = details.user.kelas || '';
+
                     if (details.school) {
                         document.getElementById('schoolName').innerText = details.school.schoolName || '-';
-                        document.getElementById('foundationName').innerText = details.school.foundationName || '-';
-                        document.getElementById('schoolAddress').innerText = details.school.schoolAddress || '-';
+                        // Elemen untuk foundationName dan schoolAddress sudah dihapus dari HTML
                     }
-                    if (details.currentKopSurat) {
+                    if (details.currentKopSurat) { // Jika Anda masih menggunakan ini
                         displayCurrentKopSuratInfo(details.currentKopSurat);
                     }
-                } else { console.error("Gagal memuat detail pengguna."); document.getElementById('userInfoName').innerText = 'Error';}
-            }).withFailureHandler(function(err){ console.error("Gagal memuat detail user: ", err); document.getElementById('userInfoName').innerText = 'Error'; }).getInitialDashboardData();
+                } else { 
+                    console.error("Gagal memuat detail pengguna."); 
+                    document.getElementById('userInfoName').innerText = 'Error';
+                    // Mungkin tambahkan penanganan error untuk input fields juga
+                }
+            }).withFailureHandler(function(err){ 
+                console.error("Gagal memuat detail user: ", err); 
+                document.getElementById('userInfoName').innerText = 'Error'; 
+            }).getInitialDashboardData();
         }
 
         function toggleKopSuratInput() {
@@ -194,14 +245,9 @@
         function isValidHttpUrl(string) {
           let url;
           try {
-            console.log("Mencoba memvalidasi URL:", string);
             url = new URL(string);
-            console.log("Objek URL berhasil dibuat:", url);
             return url.protocol === "http:" || url.protocol === "https:";
-          } catch (e) {
-            console.error("Error saat membuat objek URL:", e);
-            console.error("String URL yang gagal divalidasi:", string);
-            alert("DEBUG: Terjadi kegagalan pada konstruktor new URL().\n\nURL yang diuji: " + string + "\n\nPesan Error: " + e.message + "\n\nSilakan cek Developer Console (F12) untuk detail lebih lanjut.");
+          } catch (_) {
             return false;
           }
         }
@@ -213,7 +259,7 @@
 
             const settings = {
                 width: document.getElementById('kopSuratWidth').value || '100%',
-                height: 'auto', // Bisa ditambahkan input height jika diperlukan
+                height: document.getElementById('kopSuratHeight') ? document.getElementById('kopSuratHeight').value : 'auto',
                 alignment: document.getElementById('kopSuratAlignment').value || 'center'
             };
 
@@ -304,6 +350,7 @@
             const noKopMsg = document.getElementById('noKopSuratMessage');
             const widthInput = document.getElementById('kopSuratWidth');
             const alignmentSelect = document.getElementById('kopSuratAlignment');
+            const heightInput = document.getElementById('kopSuratHeight'); 
 
             if (kopSuratData && kopSuratData.url) {
                 let previewUrl = kopSuratData.url;
@@ -319,6 +366,7 @@
                 noKopMsg.style.display = 'block';
             }
             widthInput.value = kopSuratData.width || '100%';
+            if(heightInput) heightInput.value = kopSuratData.height || 'auto'; 
             alignmentSelect.value = kopSuratData.alignment || 'center';
 
             if (kopSuratData.sourceType === 'url' && kopSuratData.sourceValue) {
@@ -343,7 +391,7 @@
                     msgEl.className = response.status === 'success' ? "message success" : (response.status === 'info' ? 'message warning' : 'message error');
                     btn.disabled = false;
                     if (response.status === 'success') {
-                        displayCurrentKopSuratInfo({}); 
+                        displayCurrentKopSuratInfo({width: '100%', height: 'auto', alignment: 'center'}); 
                         currentKopSuratFileData = null;
                         document.getElementById('kopSuratFile').value = "";
                         document.getElementById('kopSuratImageUrl').value = "";
@@ -375,7 +423,7 @@
                 msg.className = response.status === 'success' ? "message success" : "message " + (response.status === 'warning' ? 'warning' : 'error');
                 if (response.status === 'success') { ['dateOfActivity', 'description', 'output', 'volume'].forEach(id => document.getElementById(id).value = '');}
                 btn.disabled = false; btn.innerText = "Tambah Kegiatan";
-                if (response.status === 'success') handleGenerateReport();
+                if (response.status === 'success' && window.location.search.includes('action=dashboard')) handleGenerateReport();
             }).withFailureHandler(function(error) { msg.innerText = "Error: " + error.message; msg.className = "message error"; btn.disabled = false; btn.innerText = "Tambah Kegiatan";}).addLkhEntry(entryData);
         }
 
@@ -394,10 +442,10 @@
             btn.disabled = true; btn.innerText = "Menyimpan...";
             google.script.run.withSuccessHandler(function(response) {
                 msg.innerText = response.message;
-                msg.className = response.status === 'success' || response.status === 'info' ? "message success" : "message error";
+                msg.className = response.status === 'success' || response.status === 'info' ? "message " + response.status : "message error";
                 if (response.status === 'success' || response.status === 'info') { ['recurringDescription', 'recurringOutput', 'recurringVolume'].forEach(id => document.getElementById(id).value = '');}
                 btn.disabled = false; btn.innerText = "Simpan Kegiatan Berulang";
-                 if (response.status === 'success') handleGenerateReport();
+                 if (response.status === 'success' && window.location.search.includes('action=dashboard')) handleGenerateReport(); 
             }).withFailureHandler(function(error) { msg.innerText = "Error: " + error.message; msg.className = "message error"; btn.disabled = false; btn.innerText = "Simpan Kegiatan Berulang"; }).addRecurringLkhEntries(recurringData);
         }
         
@@ -424,7 +472,20 @@
             const reportContent = document.getElementById('reportDisplay').innerHTML;
             if (reportContent && !reportContent.includes("Tidak ada data kegiatan") && !reportContent.includes("<p>Error:")) {
                 const printWindow = window.open('', '_blank', 'height=800,width=1000');
+                printWindow.document.write('<html><head><title>Cetak Laporan</title>');
+                
+                const styleSheets = document.querySelectorAll('style, link[rel="stylesheet"]');
+                styleSheets.forEach(styleSheet => {
+                    if (styleSheet.tagName === 'STYLE') {
+                        printWindow.document.write('<style>' + styleSheet.innerHTML + '</style>');
+                    } else if (styleSheet.tagName === 'LINK') {
+                         printWindow.document.write(styleSheet.outerHTML);
+                    }
+                });
+
+                printWindow.document.write('</head><body>');
                 printWindow.document.write(reportContent); 
+                printWindow.document.write('</body></html>');
                 printWindow.document.close(); 
                 printWindow.focus(); 
                 setTimeout(function(){ printWindow.print(); }, 500);
@@ -432,8 +493,29 @@
         }
 
         function handleLogout() {
-            google.script.run.withSuccessHandler(function(response) { if (response.status === 'success') window.top.location.href = "<?= ScriptApp.getService().getUrl(); ?>"; else alert("Logout gagal."); })
-            .withFailureHandler(function(err){alert("Error saat logout: " + err.message);}).logoutUser();
+            clearTimeout(inactivityTimer);
+            window.removeEventListener('mousemove', resetInactivityTimer);
+            window.removeEventListener('keypress', resetInactivityTimer);
+            window.removeEventListener('click', resetInactivityTimer);
+            window.removeEventListener('scroll', resetInactivityTimer);
+
+            const logoutButton = document.querySelector('.user-info button');
+            if(logoutButton) logoutButton.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response.status === 'success') {
+                        window.top.location.href = "<?= ScriptApp.getService().getUrl(); ?>";
+                    } else {
+                        alert("Logout gagal: " + (response.message || "Unknown error"));
+                        if(logoutButton) logoutButton.disabled = false;
+                    }
+                })
+                .withFailureHandler(function(err){
+                    alert("Error saat logout: " + err.message);
+                    if(logoutButton) logoutButton.disabled = false;
+                })
+                .logoutUser();
         }
 
         function openEditModal(entryId) {
@@ -442,8 +524,8 @@
             google.script.run.withSuccessHandler(function(entryDetails) {
                 if (entryDetails && entryDetails.status === 'success' && entryDetails.data) {
                     const data = entryDetails.data;
-                    const dateObj = new Date(data.dateOfActivity);
-                    document.getElementById('editDateOfActivity').value = dateObj.getFullYear() + '-' + ('0' + (dateObj.getMonth() + 1)).slice(-2) + '-' + ('0' + dateObj.getDate()).slice(-2);
+                    const dateObj = new Date(data.dateOfActivity); 
+                    document.getElementById('editDateOfActivity').valueAsDate = dateObj; 
                     document.getElementById('editDescription').value = data.description;
                     document.getElementById('editOutput').value = data.output;
                     document.getElementById('editVolume').value = data.volume;
@@ -451,12 +533,14 @@
                 } else { alert(entryDetails.message || "Gagal mengambil data."); }
             }).withFailureHandler(function(error) { alert("Error mengambil detail: " + error.message); }).getLkhEntryDetails(entryId);
         }
+
         function closeEditModal() { editModal.style.display = 'none'; }
+
         function handleSaveChanges() {
             const entryId = document.getElementById('editEntryId').value;
             const msg = document.getElementById('editEntryMessage');
             const updatedData = {
-                dateOfActivity: document.getElementById('editDateOfActivity').value,
+                dateOfActivity: document.getElementById('editDateOfActivity').value, 
                 description: document.getElementById('editDescription').value,
                 output: document.getElementById('editOutput').value,
                 volume: document.getElementById('editVolume').value
@@ -467,7 +551,7 @@
                 msg.innerText = response.message;
                 if (response.status === 'success') {
                     msg.className = "message success";
-                    setTimeout(function() { closeEditModal(); handleGenerateReport(); }, 1000); 
+                    setTimeout(function() { closeEditModal(); if (window.location.search.includes('action=dashboard')) handleGenerateReport(); }, 1000); 
                 } else { msg.className = "message error"; }
             }).withFailureHandler(function(error) { msg.innerText = "Error: " + error.message; msg.className = "message error";}).updateLkhEntry(entryId, updatedData);
         }
@@ -478,7 +562,7 @@
                 google.script.run
                     .withSuccessHandler(function(response) {
                         alert(response.message);
-                        if (response.status === 'success') handleGenerateReport();
+                        if (response.status === 'success' && window.location.search.includes('action=dashboard')) handleGenerateReport(); 
                     })
                     .withFailureHandler(function(error) { alert("Error menghapus kegiatan: " + error.message); })
                     .deleteLkhEntry(entryId);
@@ -491,15 +575,58 @@
             reportDisplay.innerHTML = "<p>Mengubah urutan...</p>";
             google.script.run
                 .withSuccessHandler(function(response) {
-                    alert(response.message); 
-                    if (response.status === 'success') handleGenerateReport();
-                    else reportDisplay.innerHTML = originalContent; 
+                    if (response.status === 'success') {
+                         if (window.location.search.includes('action=dashboard')) handleGenerateReport(); 
+                    } else {
+                        alert(response.message); 
+                        reportDisplay.innerHTML = originalContent; 
+                    }
                 })
                 .withFailureHandler(function(error) {
                     alert("Error saat mengubah urutan: " + error.message);
                     reportDisplay.innerHTML = originalContent; 
                 })
                 .moveLkhEntryOrder(entryId, direction);
+        }
+        
+        function handleUpdateTeacherInfo() {
+            const duty = document.getElementById('inputTeacherDuty').value;
+            const subject = document.getElementById('inputTeacherSubject').value;
+            const kelas = document.getElementById('inputTeacherClass').value;
+
+            const updatedInfo = {
+                duty: duty,
+                subject: subject,
+                kelas: kelas
+            };
+
+            const btn = document.getElementById('saveTeacherInfoButton');
+            const msgEl = document.getElementById('teacherInfoMessage');
+            msgEl.innerText = "Menyimpan...";
+            msgEl.className = "message info"; // Atau kelas lain untuk 'loading'
+            btn.disabled = true;
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    btn.disabled = false;
+                    msgEl.innerText = response.message;
+                    if (response.status === 'success') {
+                        msgEl.className = "message success";
+                        // Optional: Muat ulang detail pengguna untuk memastikan data terbaru dari server,
+                        // meskipun tidak wajib jika hanya memperbarui field yang sama.
+                        // loadUserDetails(); 
+                    } else if (response.status === 'info') {
+                        msgEl.className = "message info";
+                    } else {
+                        msgEl.className = "message error";
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    btn.disabled = false;
+                    msgEl.innerText = "Error: " + error.message;
+                    msgEl.className = "message error";
+                })
+                .updateTeacherDetails(updatedInfo);
         }
     </script>
 </body>
