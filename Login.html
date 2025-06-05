@@ -41,7 +41,7 @@
         google.script.run
           .withSuccessHandler(function(response) {
             if (response.status === 'success') {
-              window.top.location.href = "<?= ScriptApp.getService().getUrl(); ?>";
+              window.top.location.href = "<?= ScriptApp.getService().getUrl(); ?>?action=dashboard";
             } else {
               document.getElementById('errorMessage').innerText = response.message;
               loginButton.disabled = false;
