@@ -561,8 +561,10 @@
             if (confirm("Apakah Anda yakin ingin menghapus kegiatan ini?")) {
                 google.script.run
                     .withSuccessHandler(function(response) {
-                        alert(response.message);
-                        if (response.status === 'success' && window.location.search.includes('action=dashboard')) handleGenerateReport(); 
+                        alert(response.message); // Tetap tampilkan alert konfirmasi
+                        if (response.status === 'success') {
+                            handleGenerateReport(); // Selalu panggil handleGenerateReport setelah sukses
+                        }
                     })
                     .withFailureHandler(function(error) { alert("Error menghapus kegiatan: " + error.message); })
                     .deleteLkhEntry(entryId);
@@ -576,10 +578,10 @@
             google.script.run
                 .withSuccessHandler(function(response) {
                     if (response.status === 'success') {
-                         if (window.location.search.includes('action=dashboard')) handleGenerateReport(); 
+                         handleGenerateReport(); // Selalu panggil handleGenerateReport setelah sukses
                     } else {
                         alert(response.message); 
-                        reportDisplay.innerHTML = originalContent; 
+                        reportDisplay.innerHTML = originalContent; // Kembalikan konten jika tidak sukses (misal, status 'info')
                     }
                 })
                 .withFailureHandler(function(error) {
