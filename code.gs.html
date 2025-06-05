@@ -1,22 +1,33 @@
-// Global constants for sheet names
 const SCHOOLS_SHEET_NAME = "Schools";
 const TEACHERS_SHEET_NAME = "Teachers";
 const LKH_ENTRIES_SHEET_NAME = "LKH_Entries";
-const KOP_SURAT_FOLDER_ID = "1uDxtZBTN5XthOsfXY3HfxvkhvWlyIbga"; // Ganti dengan ID Folder Drive Anda
+const KOP_SURAT_FOLDER_ID = "1uDxtZBTN5XthOsfXY3HfxvkhvWlyIbga";
 
-// --- Web App Entry Point ---
 function doGet(e) {
-  if (!checkUserSession()) {
+  if (e.parameter.action === 'dashboard') {
+    // Ini adalah redirect setelah login yang berhasil ATAU refresh halaman dashboard
+    // Jika sesi tidak valid (misalnya, logout karena inaktivitas, atau pengguna membuka bookmark ?action=dashboard setelah sesi berakhir)
+    if (!checkUserSession()) {
+      PropertiesService.getUserProperties().deleteAllProperties(); // Pastikan bersih
+      return HtmlService.createTemplateFromFile('Login').evaluate()
+        .setTitle('LKH Login')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    // Sesi valid, tampilkan dashboard
+    return HtmlService.createTemplateFromFile('Index').evaluate()
+      .setTitle('LKH Dashboard')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } else {
+    // Akses ke URL dasar (misalnya, membuka link deployment di tab baru)
+    // atau parameter lain yang tidak dikenal.
+    // Selalu hapus sesi dan tampilkan halaman login.
+    PropertiesService.getUserProperties().deleteAllProperties();
     return HtmlService.createTemplateFromFile('Login').evaluate()
       .setTitle('LKH Login')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
-  return HtmlService.createTemplateFromFile('Index').evaluate()
-    .setTitle('LKH Dashboard')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// --- User Authentication (Tidak ada perubahan) ---
 function loginUser(email, password) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -48,7 +59,6 @@ function checkUserSession() {
   return userProperties.getProperty('teacherId') !== null;
 }
 
-// --- Data Fetching ---
 function getLoggedInUserDetails() {
   if (!checkUserSession()) return null;
   const userProperties = PropertiesService.getUserProperties();
@@ -58,11 +68,16 @@ function getLoggedInUserDetails() {
     const teacherSheet = ss.getSheetByName(TEACHERS_SHEET_NAME);
     const data = teacherSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === teacherId) {
+      if (data[i][0] === teacherId) { // TeacherID di kolom A (indeks 0)
         return {
-          teacherId: data[i][0], fullName: data[i][1], nip: data[i][2],
-          email: data[i][3], schoolId: data[i][5], mainDuty: data[i][6],
-          mataPelajaran: data[i][7] || ''
+          teacherId: data[i][0],
+          fullName: data[i][1],
+          nip: data[i][2],
+          email: data[i][3],
+          schoolId: data[i][5],
+          mainDuty: data[i][6] || '',      // Tugas Pokok di kolom G (indeks 6)
+          mataPelajaran: data[i][7] || '', // Mata Pelajaran di kolom H (indeks 7)
+          kelas: data[i][8] || ''         // Kelas di kolom I (indeks 8)
         };
       }
     }
@@ -72,7 +87,6 @@ function getLoggedInUserDetails() {
   return null;
 }
 
-// MODIFIKASI: Menambahkan pembacaan type_KepalaMadrasah
 function getSchoolDetailsForCurrentUser() {
   const userDetails = getLoggedInUserDetails();
   if (!userDetails || !userDetails.schoolId) return null;
@@ -88,14 +102,12 @@ function getSchoolDetailsForCurrentUser() {
     const schoolAddressColIdx = header.indexOf("SchoolAddress") > -1 ? header.indexOf("SchoolAddress") : 3;
     const headmasterNameColIdx = header.indexOf("HeadmasterName") > -1 ? header.indexOf("HeadmasterName") : 4;
     const headmasterNIPColIdx = header.indexOf("HeadmasterNIP") > -1 ? header.indexOf("HeadmasterNIP") : 5;
-    
     const kopSuratSourceValueColIdx = header.indexOf("KopSuratSourceValue") > -1 ? header.indexOf("KopSuratSourceValue") : 6;
     const kopSuratSourceTypeColIdx = header.indexOf("KopSuratSourceType") > -1 ? header.indexOf("KopSuratSourceType") : 7;
     const kopSuratWidthColIdx = header.indexOf("KopSuratWidth") > -1 ? header.indexOf("KopSuratWidth") : 8;
     const kopSuratHeightColIdx = header.indexOf("KopSuratHeight") > -1 ? header.indexOf("KopSuratHeight") : 9;
     const kopSuratAlignmentColIdx = header.indexOf("KopSuratAlignment") > -1 ? header.indexOf("KopSuratAlignment") : 10;
-    // BARU: Indeks untuk type_KepalaMadrasah
-    const typeKepalaMadrasahColIdx = header.indexOf("type_KepalaMadrasah") > -1 ? header.indexOf("type_KepalaMadrasah") : 11; // Asumsi kolom L (indeks 11)
+    const typeKepalaMadrasahColIdx = header.indexOf("type_KepalaMadrasah") > -1 ? header.indexOf("type_KepalaMadrasah") : 11;
 
     for (let i = 1; i < data.length; i++) {
       if (data[i][schoolIdColIdx] === userDetails.schoolId) {
@@ -109,8 +121,7 @@ function getSchoolDetailsForCurrentUser() {
           schoolAddress: data[i][schoolAddressColIdx],
           headmasterName: data[i][headmasterNameColIdx],
           headmasterNIP: data[i][headmasterNIPColIdx],
-          typeKepalaMadrasah: data[i][typeKepalaMadrasahColIdx] || 'Kepala Madrasah', // BARU: Baca & default jika kosong
-          
+          typeKepalaMadrasah: data[i][typeKepalaMadrasahColIdx] || 'Kepala Madrasah',
           _rawKopSuratSourceValue: sourceValue,
           _rawKopSuratSourceType: sourceType,
           _rawKopSuratWidth: data[i][kopSuratWidthColIdx] || '100%',
@@ -128,7 +139,6 @@ function getSchoolDetailsForCurrentUser() {
 function getInitialDashboardData() {
   const user = getLoggedInUserDetails();
   const schoolDetails = getSchoolDetailsForCurrentUser(); 
-  // schoolDetails sekarang memiliki typeKepalaMadrasah, tapi tidak digunakan di dashboard utama ini.
   
   let currentKopSuratViewData = {
     sourceValue: null, url: null, width: '100%', height: 'auto', alignment: 'center', sourceType: null
@@ -152,7 +162,7 @@ function getInitialDashboardData() {
   }
   
   let finalSchoolDetails = {...schoolDetails};
-  delete finalSchoolDetails._rawKopSuratSourceValue; // Hapus properti mentah
+  delete finalSchoolDetails._rawKopSuratSourceValue;
   delete finalSchoolDetails._rawKopSuratSourceType;
   delete finalSchoolDetails._rawKopSuratWidth;
   delete finalSchoolDetails._rawKopSuratHeight;
@@ -161,10 +171,6 @@ function getInitialDashboardData() {
   return { user: user, school: finalSchoolDetails, currentKopSurat: currentKopSuratViewData };
 }
 
-// --- LKH Entry Management (Tidak ada perubahan di sini) ---
-// ... (fungsi getNextOrderInDay, checkDuplicateLkhEntry, addLkhEntry, addRecurringLkhEntries, getLkhEntriesForMonth)
-// ... (fungsi deleteLkhEntry, getLkhEntryDetails, updateLkhEntry, moveLkhEntryOrder)
-// --- FUNGSI LKH DI ATAS TETAP SAMA SEPERTI SEBELUMNYA ---
 function getNextOrderInDay(sheet, teacherId, dateOfActivity) {
   const data = sheet.getDataRange().getValues();
   let maxOrder = 0;
@@ -176,7 +182,7 @@ function getNextOrderInDay(sheet, teacherId, dateOfActivity) {
       if (isNaN(entryDate.getTime())) continue;
       const entryDateStr = Utilities.formatDate(entryDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
       if (entryDateStr === targetDateStr) {
-        const currentOrder = parseInt(data[i][8]); // OrderInDay di kolom I (indeks 8)
+        const currentOrder = parseInt(data[i][8]);
         if (!isNaN(currentOrder) && currentOrder > maxOrder) {
           maxOrder = currentOrder;
         }
@@ -286,42 +292,91 @@ function addRecurringLkhEntries(recurringData) {
 function getLkhEntriesForMonth(monthYear) {
   if (!checkUserSession()) return [];
   const userDetails = getLoggedInUserDetails();
+  if (!userDetails) { // Tambahan: Pastikan userDetails tidak null
+    Logger.log("getLkhEntriesForMonth: userDetails is null, exiting.");
+    return [];
+  }
+
+  Logger.log("getLkhEntriesForMonth: Called with monthYear = " + monthYear + ", user: " + userDetails.teacherId);
+
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const lkhSheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
     const data = lkhSheet.getDataRange().getValues();
     const entries = [];
-    const [year, month] = monthYear.split('-').map(Number);
+    const [yearFilter, monthFilter] = monthYear.split('-').map(Number); // Menggunakan nama variabel yang berbeda untuk filter
 
-    for (let i = 1; i < data.length; i++) {
-      if (data[i].length < 9) continue; 
-      if (data[i][1] === userDetails.teacherId) {
-        const activityDateRaw = data[i][2];
-        if (!activityDateRaw) { Logger.log("Skipping row " + (i+1) + " due to empty date."); continue; }
+    Logger.log("getLkhEntriesForMonth: Filtering for year = " + yearFilter + ", month = " + monthFilter);
+
+    for (let i = 1; i < data.length; i++) { // Mulai dari baris kedua (indeks 1)
+      // Logger.log("Processing row: " + (i+1) + ", Data: " + JSON.stringify(data[i])); // Bisa sangat verbose
+      if (data[i].length < 9) {
+        // Logger.log("Skipping row " + (i+1) + " due to insufficient columns: " + data[i].length);
+        continue; 
+      }
+      
+      const sheetTeacherId = String(data[i][1] || '').trim(); // Ambil TeacherID dari sheet
+      const currentUserTeacherId = String(userDetails.teacherId).trim();
+
+      // Logger.log("Row " + (i+1) + ": Sheet TeacherID = '" + sheetTeacherId + "', Current User TeacherID = '" + currentUserTeacherId + "'");
+
+      if (sheetTeacherId === currentUserTeacherId) {
+        const activityDateRaw = data[i][2]; 
+        // Logger.log("Row " + (i+1) + ": Matched TeacherID. activityDateRaw = " + activityDateRaw);
+
+        if (!activityDateRaw) { 
+          Logger.log("Skipping row " + (i+1) + " due to empty date."); 
+          continue; 
+        }
+        
         const activityDate = new Date(activityDateRaw);
-        if (isNaN(activityDate.getTime())) { Logger.log("Skipping row " + (i+1) + " due to invalid date: " + activityDateRaw); continue; }
-        if (activityDate.getFullYear() === year && (activityDate.getMonth() + 1) === month) {
+        if (isNaN(activityDate.getTime())) { 
+          Logger.log("Skipping row " + (i+1) + " due to invalid date from raw value: " + activityDateRaw); 
+          continue; 
+        }
+
+        const activityYear = activityDate.getFullYear();
+        const activityMonth = activityDate.getMonth() + 1; // getMonth() is 0-indexed
+
+        // Logger.log("Row " + (i+1) + ": activityYear = " + activityYear + ", activityMonth = " + activityMonth);
+
+        if (activityYear === yearFilter && activityMonth === monthFilter) {
+          Logger.log("Row " + (i+1) + ": DATE MATCHED! Adding to entries.");
           const description = (data[i][4] === null || data[i][4] === undefined) ? "" : String(data[i][4]);
           const output = (data[i][5] === null || data[i][5] === undefined) ? "" : String(data[i][5]);
           const volume = (data[i][6] === null || data[i][6] === undefined) ? "" : String(data[i][6]);
           const orderInDayVal = (data[i][8] === null || data[i][8] === undefined || data[i][8] === "") ? 0 : parseInt(data[i][8]);
+          
           entries.push({
-            entryId: String(data[i][0] || ''), teacherId: String(data[i][1] || ''),
+            entryId: String(data[i][0] || ''), 
+            teacherId: sheetTeacherId, // Menggunakan sheetTeacherId yang sudah divalidasi
             dateOfActivity: Utilities.formatDate(activityDate, Session.getScriptTimeZone(), "yyyy-MM-dd"),
-            dayOfActivity: String(data[i][3] || ''), description: description,
-            output: output, volume: volume,
+            dayOfActivity: String(data[i][3] || ''), 
+            description: description,
+            output: output, 
+            volume: volume,
             submissionTimestamp: data[i][7] ? new Date(data[i][7]).toISOString() : '',
             orderInDay: orderInDayVal
           });
+        } else {
+          // Logger.log("Row " + (i+1) + ": Date did not match.");
         }
+      } else {
+        // Logger.log("Row " + (i+1) + ": TeacherID did not match.");
       }
     }
+    
+    Logger.log("getLkhEntriesForMonth: Total entries found before sort = " + entries.length);
+    
     entries.sort((a, b) => {
         const dateComparison = new Date(a.dateOfActivity) - new Date(b.dateOfActivity);
         if (dateComparison !== 0) return dateComparison;
         return a.orderInDay - b.orderInDay;
     });
+    
+    Logger.log("getLkhEntriesForMonth: Returning " + entries.length + " entries.");
     return entries;
+
   } catch (err) {
     Logger.log("Error in getLkhEntriesForMonth: " + err.message + " Stack: " + err.stack);
     return [];
@@ -484,11 +539,9 @@ function moveLkhEntryOrder(entryId, direction) {
   }
 }
 
-
-// --- Report Generation (Diperbarui untuk Judul Kepala Madrasah & Garis Bawah Nama) ---
 function generateReportHtmlForMonth(monthYear) {
   const user = getLoggedInUserDetails(); 
-  const school = getSchoolDetailsForCurrentUser(); // school sekarang memiliki .typeKepalaMadrasah
+  const school = getSchoolDetailsForCurrentUser();
   let entries = getLkhEntriesForMonth(monthYear);
 
   if (!user || !school) {
@@ -525,8 +578,8 @@ function generateReportHtmlForMonth(monthYear) {
         reportPeriod = `${firstDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} - ${lastDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} (${workingDays} Hari Kerja)`;
     }
   } else if (monthYear) { 
-      const [year, monthNum] = monthYear.split('-');
-      reportPeriod = `Bulan ${new Date(parseInt(year), parseInt(monthNum)-1, 1).toLocaleDateString('id-ID', { month: 'long' })} ${year} (0 Hari Kerja)`;
+      const [yearStrVal, monthNumVal] = monthYear.split('-');
+      reportPeriod = `Bulan ${new Date(parseInt(yearStrVal), parseInt(monthNumVal)-1, 1).toLocaleDateString('id-ID', { month: 'long' })} ${yearStrVal} (0 Hari Kerja)`;
   }
 
   let html = `<html><head><title>LKH Report</title><?!= HtmlService.createHtmlOutputFromFile('Stylesheet').getContent(); ?></head><body>`;
@@ -558,7 +611,8 @@ function generateReportHtmlForMonth(monthYear) {
              <tr><td>NAMA</td><td>: ${user.fullName || ''}</td></tr>
              <tr><td>NIP</td><td>: ${user.nip || '-'}</td></tr>
              <tr><td>TUGAS POKOK</td><td>: ${user.mainDuty || ''}</td></tr>
-             <tr><td>MATA PELAJARAN</td><td>: ${user.mataPelajaran || '-'}</td></tr> 
+             <tr><td>MATA PELAJARAN</td><td>: ${user.mataPelajaran || '-'}</td></tr>
+             <tr><td>KELAS</td><td>: ${user.kelas || '-'}</td></tr> 
              <tr><td>HARI/TANGGAL</td><td>: ${reportPeriod}</td></tr>
            </table><br/>`;
 
@@ -593,69 +647,94 @@ function generateReportHtmlForMonth(monthYear) {
 
   let dateForFooterSignature = (processedEntries.length > 0) ? 
     new Date(processedEntries[processedEntries.length - 1].dateOfActivity).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) :
-    (monthYear ? new Date(parseInt(monthYear.split('-')[0]), parseInt(monthYear.split('-')[1]), 0).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : 
+    (monthYear ? new Date(parseInt(monthYear.split('-')[0]), parseInt(monthYear.split('-')[1])-1, new Date(parseInt(monthYear.split('-')[0]), parseInt(monthYear.split('-')[1]), 0).getDate()).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) :
     new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }));
+    
   let locationName = 'Butung'; 
   if (school.schoolAddress) {
-      const matchLingkungan = school.schoolAddress.match(/Lingkungan\s+([^\s,Kel.]+)/i);
-      locationName = (matchLingkungan && matchLingkungan[1]) ? matchLingkungan[1] : (school.schoolAddress.split(' ')[0] || locationName);
+      const addressParts = school.schoolAddress.split(/[ ,]+/); 
+      if (addressParts.length > 0) {
+        const lingkunganIndex = addressParts.findIndex(part => part.toLowerCase() === 'lingkungan');
+        if (lingkunganIndex !== -1 && lingkunganIndex + 1 < addressParts.length) {
+            locationName = addressParts[lingkunganIndex + 1];
+        } else {
+            locationName = addressParts[0];
+        }
+        locationName = locationName.charAt(0).toUpperCase() + locationName.slice(1).toLowerCase(); 
+      }
   }
 
-  // MODIFIKASI: Judul Kepala Madrasah dinamis
   const headmasterTitle = school.typeKepalaMadrasah || 'Kepala Madrasah'; 
+  const normalizedUserName = (user.fullName || '').trim().toLowerCase();
+  const normalizedHeadmasterName = (school.headmasterName || '').trim().toLowerCase();
 
-  // Format Nama Guru Pengajar (sudah ada dari sebelumnya)
-  let teacherNameForSignature = user.fullName || 'NAMA GURU';
-  const commaIndex = teacherNameForSignature.indexOf(',');
-  if (commaIndex !== -1) {
-      let namePart = teacherNameForSignature.substring(0, commaIndex);
-      let titlePart = teacherNameForSignature.substring(commaIndex);
-      teacherNameForSignature = namePart.toUpperCase() + titlePart;
-  } else {
-      teacherNameForSignature = teacherNameForSignature.toUpperCase();
-  }
+  // ---- MODIFIKASI BLOK TANDA TANGAN ----
+  html += `<div class="footer-signatures">`;
 
-  // MODIFIKASI: Tambahkan <u> untuk garis bawah pada nama
-  html += `<div class="footer-signatures">
+  if (normalizedUserName && normalizedHeadmasterName && normalizedUserName === normalizedHeadmasterName) {
+    // Jika nama guru sama dengan nama kepala madrasah:
+    // Hanya tampilkan satu blok di kanan (atau tengah jika CSS diubah)
+    // Blok kiri dikosongkan agar blok kanan tetap di posisi kanan karena justify-content: space-between;
+    html += `<div class="signature-block">
+               </div>
              <div class="signature-block">
-               <p>Mengetahui,<br/>${headmasterTitle}</p>
+               <p>${locationName}, ${dateForFooterSignature}</p>
+               <p>${headmasterTitle}</p> 
                <br/><br/><br/>
                <p><strong><u>${school.headmasterName || ''}</u></strong></p>
                <p>NIP. ${school.headmasterNIP || '-'}</p>
-             </div>
-             <div class="signature-block">
-               <p>${locationName}, ${dateForFooterSignature}<br/>Guru Pengajar</p>
-               <br/><br/><br/>
-               <p><strong><u>${teacherNameForSignature}</u></strong></p>
-               <p>NIP. ${user.nip || '-'}</p>
-             </div>
-           </div>`;
+             </div>`;
+  } else {
+    // Jika nama guru berbeda (kasus normal, dua blok tanda tangan)
+    let teacherNameForSignature = user.fullName || 'NAMA GURU';
+    const commaIndexTeacher = teacherNameForSignature.indexOf(',');
+    if (commaIndexTeacher !== -1) {
+        let namePart = teacherNameForSignature.substring(0, commaIndexTeacher);
+        let titlePart = teacherNameForSignature.substring(commaIndexTeacher);
+        teacherNameForSignature = namePart.toUpperCase() + titlePart;
+    } else {
+        teacherNameForSignature = teacherNameForSignature.toUpperCase();
+    }
+
+    html += `
+        <div class="signature-block">
+          <p>Mengetahui,<br/>${headmasterTitle}</p>
+          <br/><br/><br/>
+          <p><strong><u>${school.headmasterName || ''}</u></strong></p>
+          <p>NIP. ${school.headmasterNIP || '-'}</p>
+        </div>
+        <div class="signature-block">
+          <p>${locationName}, ${dateForFooterSignature}<br/>Guru Pengajar</p>
+          <br/><br/><br/>
+          <p><strong><u>${teacherNameForSignature}</u></strong></p>
+          <p>NIP. ${user.nip || '-'}</p>
+        </div>`;
+  }
+  html += `</div>`; // Penutup untuk .footer-signatures
+  // ---- AKHIR MODIFIKASI BLOK TANDA TANGAN ----
+
   html += `</div></body></html>`;
   return html;
 }
-
 
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// --- Kop Surat Management (Tidak ada perubahan di sini dari versi terakhir) ---
-// MODIFIKASI: getSchoolRowData diperbarui untuk kolom type_KepalaMadrasahCol
 function getSchoolRowData(schoolId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const schoolSheet = ss.getSheetByName(SCHOOLS_SHEET_NAME);
   const data = schoolSheet.getDataRange().getValues();
-  // Asumsi: SchoolID(A=0)... Align(K=10), type_KepalaMadrasah(L=11)
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === schoolId) { 
       return {
         row: i + 1,
-        sourceValueCol: 7,  // Kolom G
-        sourceTypeCol: 8,   // Kolom H
-        widthCol: 9,        // Kolom I
-        heightCol: 10,      // Kolom J
-        alignCol: 11,       // Kolom K
-        typeKepalaMadrasahCol: 12 // BARU: Kolom L (indeks aktual 11)
+        sourceValueCol: 7, 
+        sourceTypeCol: 8,  
+        widthCol: 9,       
+        heightCol: 10,     
+        alignCol: 11,      
+        typeKepalaMadrasahCol: 12
       };
     }
   }
@@ -705,9 +784,7 @@ function updateKopSuratSource(kopSuratPayload) {
       message = "Kop surat berhasil diupload dari file.";
     } else if (kopSuratPayload.type === 'url' && kopSuratPayload.imageUrl) {
       const imageUrl = kopSuratPayload.imageUrl.trim();
-      // Logger.log("SERVER: Menerima URL untuk divalidasi: '" + imageUrl + "'"); // Sudah dihapus karena sudah berfungsi
       if (!isValidHttpUrl(imageUrl)) {
-        // Logger.log("SERVER: isValidHttpUrl sisi server mengembalikan false untuk: '" + imageUrl + "'"); // Sudah dihapus
         return { status: 'error', message: 'Format URL gambar tidak valid.' };
       }
       newSourceValue = imageUrl; newSourceType = 'url'; displayUrl = newSourceValue;
@@ -758,7 +835,7 @@ function deleteKopSuratImage() {
         schoolSheet.getRange(schoolRowData.row, schoolRowData.widthCol).clearContent();
         schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).clearContent();
         schoolSheet.getRange(schoolRowData.row, schoolRowData.alignCol).clearContent();
-        schoolSheet.getRange(schoolRowData.row, schoolRowData.typeKepalaMadrasahCol).clearContent(); // BARU: Bersihkan typeKepalaMadrasah juga
+        schoolSheet.getRange(schoolRowData.row, schoolRowData.typeKepalaMadrasahCol).clearContent();
         return { status: 'success', message: 'Kop surat dan tipe kepala madrasah berhasil dihapus.' };
       }
       return { status: 'info', message: 'Tidak ada kop surat untuk dihapus.' };
@@ -769,7 +846,7 @@ function deleteKopSuratImage() {
   }
 }
 
-function saveKopSuratSettings(settings) { // Fungsi ini juga harus menyimpan typeKepalaMadrasah jika suatu saat diperlukan
+function saveKopSuratSettings(settings) {
   if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
   const userDetails = getLoggedInUserDetails();
   if (!userDetails || !userDetails.schoolId) return { status: 'error', message: 'Data pengguna atau sekolah tidak ditemukan.' };
@@ -782,9 +859,6 @@ function saveKopSuratSettings(settings) { // Fungsi ini juga harus menyimpan typ
       if (settings.height && settings.height.trim() !== "") schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).setValue(settings.height);
       else schoolSheet.getRange(schoolRowData.row, schoolRowData.heightCol).clearContent();
       if (settings.alignment) schoolSheet.getRange(schoolRowData.row, schoolRowData.alignCol).setValue(settings.alignment);
-      // Jika suatu saat ingin menyimpan typeKepalaMadrasah melalui fungsi ini juga:
-      // if (settings.typeKepalaMadrasah) schoolSheet.getRange(schoolRowData.row, schoolRowData.typeKepalaMadrasahCol).setValue(settings.typeKepalaMadrasah);
-
       return { status: 'success', message: 'Pengaturan kop surat berhasil disimpan.' };
     } else return { status: 'error', message: 'Baris data sekolah tidak ditemukan.' };
   } catch (e) {
@@ -793,4 +867,63 @@ function saveKopSuratSettings(settings) { // Fungsi ini juga harus menyimpan typ
   }
 }
 
-// BARU: Fungsi testUrlServerSide dihapus karena sudah tidak relevan, isValidHttpUrl sudah diubah.
+function updateTeacherDetails(updatedInfo) {
+  if (!checkUserSession()) {
+    return { status: 'error', message: 'Sesi tidak valid. Silakan login ulang.' };
+  }
+  const userProperties = PropertiesService.getUserProperties();
+  const teacherId = userProperties.getProperty('teacherId');
+  if (!teacherId) {
+    return { status: 'error', message: 'Teacher ID tidak ditemukan di sesi.' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const teacherSheet = ss.getSheetByName(TEACHERS_SHEET_NAME);
+    const data = teacherSheet.getDataRange().getValues();
+    let teacherRowIndex = -1; // Indeks baris berbasis 0 untuk array data
+
+    // Cari baris guru (lewati header)
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === teacherId) { // TeacherID di kolom A (indeks 0)
+        teacherRowIndex = i;
+        break;
+      }
+    }
+
+    if (teacherRowIndex === -1) {
+      return { status: 'error', message: 'Data guru tidak ditemukan di sheet.' };
+    }
+
+    const sheetRow = teacherRowIndex + 1; // Baris di sheet adalah 1-indexed
+
+    // Kolom Indeks (1-based untuk getRange):
+    // G: Tugas Pokok (7)
+    // H: Mata Pelajaran (8)
+    // I: Kelas (9)
+
+    let changesMade = false;
+    if (updatedInfo.hasOwnProperty('duty')) {
+      teacherSheet.getRange(sheetRow, 7).setValue(updatedInfo.duty); // Kolom G
+      changesMade = true;
+    }
+    if (updatedInfo.hasOwnProperty('subject')) {
+      teacherSheet.getRange(sheetRow, 8).setValue(updatedInfo.subject); // Kolom H
+      changesMade = true;
+    }
+    if (updatedInfo.hasOwnProperty('kelas')) {
+      teacherSheet.getRange(sheetRow, 9).setValue(updatedInfo.kelas); // Kolom I
+      changesMade = true;
+    }
+
+    if (!changesMade) {
+        return { status: 'info', message: 'Tidak ada perubahan data untuk disimpan.' };
+    }
+
+    return { status: 'success', message: 'Informasi guru berhasil diperbarui.' };
+
+  } catch (err) {
+    Logger.log("Error in updateTeacherDetails: " + err.message + " Stack: " + err.stack);
+    return { status: 'error', message: 'Gagal memperbarui informasi guru: ' + err.message };
+  }
+}
