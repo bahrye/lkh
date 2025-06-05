@@ -634,7 +634,7 @@ function generateReportHtmlForMonth(monthYear) {
       html += `<td style="text-align: center; vertical-align: middle;">${pEntry.volume ? String(pEntry.volume).replace(/\n/g, '<br>') : ''}</td>`;
       html += `<td></td>`; 
       html += `<td style="text-align: left; vertical-align: middle;">`;
-      html += `<button class="action-btn edit-btn" onclick="openEditModal('${pEntry.entryId}')">Edit</button>`;
+      //html += `<button class="action-btn edit-btn" onclick="openEditModal('${pEntry.entryId}')">Edit</button>`;//
       html += `<button class="action-btn delete-btn" onclick="confirmDeleteEntry('${pEntry.entryId}')">Hapus</button>`;
       if (pEntry.groupSize > 1) { 
           if (!pEntry.isFirstInDayGroup) html += `<button class="action-btn move-btn" title="Naikkan" onclick="handleMoveEntryOrder('${pEntry.entryId}', 'up')">&uarr;</button>`;
