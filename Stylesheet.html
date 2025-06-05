@@ -30,14 +30,13 @@ button:disabled { background-color: #6c757d; cursor: not-allowed; }
 .info { background-color: #cce5ff; color: #004085; border: 1px solid #b8daff; }
 .report-display { margin-top:20px; padding:0px; border:1px dashed #ccc; min-height:100px; background-color: #fff; }
 
-/* ===== STYLING UNTUK LAPORAN BULANAN (.report-container) ===== */
 .report-container { 
   padding:20px; 
   border: none; 
   margin-top: 0px; 
   background-color: white; 
-  font-family: Arial, sans-serif; /* Font Arial untuk semua teks laporan */
-  font-size: 12px; /* Ukuran font dasar untuk "teks lainnya" */
+  font-family: Arial, sans-serif; 
+  font-size: 12px; 
 }
 .report-container .header { 
   text-align: center; 
@@ -47,10 +46,9 @@ button:disabled { background-color: #6c757d; cursor: not-allowed; }
   max-width: 100%; 
   height: auto; 
 }
-/* Teks fallback kop surat jika tidak ada gambar */
-.report-container .header h2 { margin: 2px 0; font-size: 1.15em; } /* Sekitar 13.8px, bisa disesuaikan jika perlu 12px mutlak */
-.report-container .header h3 { margin: 2px 0; font-size: 1.05em; } /* Sekitar 12.6px, bisa disesuaikan jika perlu 12px mutlak */
-.report-container .header p { margin: 2px 0; font-size: 12px; } /* Teks lainnya di header kop jadi 12px */
+.report-container .header h2 { margin: 2px 0; font-size: 1.15em; } 
+.report-container .header h3 { margin: 2px 0; font-size: 1.05em; } 
+.report-container .header p { margin: 2px 0; font-size: 12px; } 
 
 .report-container hr { 
   margin: 10px 0; 
@@ -58,67 +56,62 @@ button:disabled { background-color: #6c757d; cursor: not-allowed; }
   border-top: 1px solid #ccc; 
 }
 
-/* Judul Utama Laporan (LKH GURU...) */
 .report-container h4 { 
   text-align:center; 
   margin-bottom:15px; 
-  font-size: 15px; /* Sesuai permintaan */
+  font-size: 15px; 
   line-height:1.4; 
-  font-weight: bold; /* Biasanya judul utama ditebalkan */
+  font-weight: bold; 
 }
 
-/* Tabel Informasi Guru (NAMA, NIP, dll.) */
 .report-container .info-table { 
   width: auto; 
   margin-bottom: 15px; 
   border: none !important; 
-  /* font-size tidak diatur di sini, biarkan td yang mengatur */
 }
 .report-container .info-table td { 
   padding: 2px 5px; 
   border: none !important; 
   vertical-align:top; 
-  font-size: 13px; /* Sesuai permintaan */
+  font-size: 13px; 
 }
 .report-container .info-table td:first-child { 
   font-weight:bold; 
   width:120px; 
 }
 
-/* Tabel Data Kegiatan */
 .report-container .data-table { 
   width: 100%; 
   border-collapse: collapse; 
   margin-bottom: 20px; 
 }
-.report-container .data-table th { /* Header Tabel Data */
+.report-container .data-table th { 
   border: 1px solid #777; 
   padding: 5px 7px; 
   background-color: #e9ecef; 
   font-weight:bold; 
   text-align:center; 
   vertical-align: middle; 
-  font-size: 13px; /* Sesuai permintaan */
+  font-size: 13px; 
 }
-.report-container .data-table td { /* Isi Tabel Data - Teks Lainnya */
+.report-container .data-table td { 
   border: 1px solid #777; 
   padding: 5px 7px; 
   text-align: left; 
   vertical-align:top;
-  font-size: 12px; /* Sesuai permintaan */
+  font-size: 12px; 
 }
 .report-container .data-table td:first-child { text-align:center; vertical-align: middle; } 
 .report-container .data-table td:nth-child(2) { text-align:center; vertical-align: middle; } 
 .report-container .data-table td:nth-child(5) { text-align:center; vertical-align: middle; } 
 .report-container .data-table td:last-child { text-align: center; white-space: nowrap; vertical-align: middle;}
 
-/* Blok Tanda Tangan */
 .report-container .footer-signatures { 
   display: flex; 
   justify-content: space-between; 
   margin-top: 40px; 
   page-break-inside: avoid; 
-  font-size: 12px; /* Teks Lainnya - Sesuai permintaan */
+  font-size: 12px; 
 }
 .report-container .signature-block { 
   text-align: center; 
@@ -127,7 +120,6 @@ button:disabled { background-color: #6c757d; cursor: not-allowed; }
 .report-container .signature-block p { 
   margin: 3px 0; 
 }
-/* ===== AKHIR STYLING UNTUK LAPORAN BULANAN ===== */
 
 .action-btn { padding: 4px 8px; font-size: 0.85em; margin-right: 5px; margin-bottom: 3px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; display: inline-block; }
 .edit-btn { background-color: #ffc107; color: #212529; border-color: #ffc107; }
