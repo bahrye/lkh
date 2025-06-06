@@ -1045,7 +1045,6 @@ function generatePdfReport(monthYear) {
 
     // 2. Masukkan Judul Laporan di sel terpisah (B2, B3, B4)
     tempSheet.getRange('B2').setValue('LAPORAN KINERJA HARIAN (LKH)').setHorizontalAlignment('center');
-    // --- PERBAIKAN TYPO DI BARIS INI ---
     tempSheet.getRange('B3').setValue(`GURU DAN TENAGA KEPENDIDIKAN ${school.schoolName || ''}`).setHorizontalAlignment('center');
     tempSheet.getRange('B4').setValue('PEMBELAJARAN TATAP MUKA').setHorizontalAlignment('center');
 
@@ -1070,7 +1069,7 @@ function generatePdfReport(monthYear) {
     tempSheet.getRange('E10').setValue(user.kelas || '-');
     tempSheet.getRange('E11').setValue(reportPeriod);
 
-    // 4. Masukkan data kegiatan ke tabel (mulai dari baris 15 dan kolom baru)
+    // 4. Masukkan data kegiatan ke tabel (mulai dari baris 15)
     let currentRow = 15;
     if (entries && entries.length > 0) {
       let groupedByDate = {};
@@ -1087,18 +1086,21 @@ function generatePdfReport(monthYear) {
         
         tempSheet.getRange(currentRow, 2).setValue(entryNumber).setWrap(true);
         tempSheet.getRange(currentRow, 3).setValue(dateFormatted).setWrap(true);
-        tempSheet.getRange(currentRow, 4).setValue(dateEntries[0].description).setWrap(true);
-        tempSheet.getRange(currentRow, 6).setValue(dateEntries[0].output).setWrap(true);
-        tempSheet.getRange(currentRow, 7).setValue(dateEntries[0].volume).setWrap(true);
+        
+        // [MODIFIKASI] Set nilai dan perataan teks untuk entri pertama
+        tempSheet.getRange(currentRow, 4, 1, 2).merge().setValue(dateEntries[0].description).setWrap(true).setHorizontalAlignment('left');
+        tempSheet.getRange(currentRow, 6).setValue(dateEntries[0].output).setWrap(true).setHorizontalAlignment('left');
+        tempSheet.getRange(currentRow, 7).setValue(dateEntries[0].volume).setWrap(true).setHorizontalAlignment('center');
         
         if (dateEntries.length > 1) {
           tempSheet.getRange(currentRow, 2, dateEntries.length, 1).merge().setVerticalAlignment('middle');
           tempSheet.getRange(currentRow, 3, dateEntries.length, 1).merge().setVerticalAlignment('middle');
           
           for(let i = 1; i < dateEntries.length; i++) {
-             tempSheet.getRange(currentRow + i, 4).setValue(dateEntries[i].description).setWrap(true);
-             tempSheet.getRange(currentRow + i, 6).setValue(dateEntries[i].output).setWrap(true);
-             tempSheet.getRange(currentRow + i, 7).setValue(dateEntries[i].volume).setWrap(true);
+             // [MODIFIKASI] Set nilai dan perataan teks untuk entri berikutnya
+             tempSheet.getRange(currentRow + i, 4, 1, 2).merge().setValue(dateEntries[i].description).setWrap(true).setHorizontalAlignment('left');
+             tempSheet.getRange(currentRow + i, 6).setValue(dateEntries[i].output).setWrap(true).setHorizontalAlignment('left');
+             tempSheet.getRange(currentRow + i, 7).setValue(dateEntries[i].volume).setWrap(true).setHorizontalAlignment('center');
           }
         }
         
@@ -1113,7 +1115,7 @@ function generatePdfReport(monthYear) {
     
     lastRow = currentRow - 1;
 
-    // 5. Masukkan Tanda Tangan dengan perataan KIRI
+    // 5. Masukkan Tanda Tangan
     const signatureStartRow = lastRow + 3;
     const dateForFooterSignature = (entries.length > 0) ? new Date(entries[entries.length - 1].dateOfActivity).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
     
@@ -1144,7 +1146,7 @@ function generatePdfReport(monthYear) {
     
     lastRow = signatureStartRow + 5;
 
-    // 6. Buat PDF dari sheet sementara dengan range A1:I
+    // 6. Buat PDF dari sheet sementara
     SpreadsheetApp.flush();
     
     const pdfOptions = {
@@ -1159,7 +1161,7 @@ function generatePdfReport(monthYear) {
       gid: tempSheet.getSheetId(),
       c1: 0,
       r1: 0,
-      c2: 9,
+      c2: 9, // Kolom A-I
       r2: lastRow 
     };
     const url = `https://docs.google.com/spreadsheets/d/${ss.getId()}/export?` + Object.entries(pdfOptions).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
