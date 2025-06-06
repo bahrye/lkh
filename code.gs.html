@@ -945,3 +945,50 @@ function updateTeacherDetails(updatedInfo) {
     return { status: 'error', message: 'Gagal memperbarui informasi guru: ' + err.message };
   }
 }
+
+function deleteAllLkhEntriesForMonth(monthYear) {
+  if (!checkUserSession()) {
+    return { status: 'error', message: 'Sesi tidak valid. Silakan login ulang.' };
+  }
+  const userDetails = getLoggedInUserDetails();
+  if (!userDetails) {
+    return { status: 'error', message: 'Tidak dapat memverifikasi pengguna.' };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    const rowsToDelete = [];
+    let deletedCount = 0;
+
+    const [yearFilter, monthFilter] = monthYear.split('-').map(Number);
+
+    // Kumpulkan semua baris yang akan dihapus dari bawah ke atas
+    for (let i = data.length - 1; i >= 1; i--) { // Iterasi dari belakang
+      const rowData = data[i];
+      const teacherIdInSheet = rowData[1];
+      const dateInSheet = new Date(rowData[2]);
+
+      if (teacherIdInSheet === userDetails.teacherId && !isNaN(dateInSheet.getTime())) {
+        const entryYear = dateInSheet.getFullYear();
+        const entryMonth = dateInSheet.getMonth() + 1; // getMonth() adalah 0-indexed
+
+        if (entryYear === yearFilter && entryMonth === monthFilter) {
+          sheet.deleteRow(i + 1); // Hapus baris di sheet (indeks 1-based)
+          deletedCount++;
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      return { status: 'success', message: `Berhasil menghapus ${deletedCount} kegiatan dari bulan yang dipilih.` };
+    } else {
+      return { status: 'info', message: 'Tidak ada kegiatan yang ditemukan untuk dihapus pada bulan yang dipilih.' };
+    }
+
+  } catch (e) {
+    Logger.log('Error deleting all entries for month ' + monthYear + ': ' + e.toString() + " Stack: " + e.stack);
+    return { status: 'error', message: 'Terjadi kesalahan saat menghapus kegiatan: ' + e.message };
+  }
+}
