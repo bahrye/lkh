@@ -114,8 +114,11 @@
             <button id="generateReportButton" onclick="handleGenerateReport()">Tampilkan Laporan</button>
             <div id="reportDisplay" class="report-display"></div>
         </div>
-        <button id="printReportButton" onclick="printReport()" style="display:none; margin-top:10px; background-color: #17a2b8;">Cetak Laporan</button>
-        <button id="deleteAllEntriesButton" onclick="handleDeleteAllEntries()" style="display:none; margin-top:10px; background-color: #dc3545; margin-left: 10px;">Hapus Semua Kegiatan</button>
+        <div id="reportActionsContainer" style="display:none; margin-top:10px;">
+            <button id="printReportButton" onclick="printReport()" style="background-color: #17a2b8;">Cetak ke PDF</button>
+            <button id="exportExcelButton" onclick="handleExportExcel()" style="background-color: #218838; margin-left: 10px;">Cetak ke Excel</button>
+            <button id="deleteAllEntriesButton" onclick="handleDeleteAllEntries()" style="background-color: #dc3545; margin-left: 10px;">Hapus Semua Kegiatan</button>
+        </div>
     </div>
 
     <div id="editLkhModal" class="modal">
@@ -453,35 +456,29 @@
         function handleGenerateReport() {
             const monthYear = document.getElementById('reportMonth').value;
             const btn = document.getElementById('generateReportButton');
-            const printBtn = document.getElementById('printReportButton');
-            const deleteAllBtn = document.getElementById('deleteAllEntriesButton'); // <-- Tambahkan variabel untuk tombol baru
+            const reportActions = document.getElementById('reportActionsContainer'); // Ganti ke container
             const display = document.getElementById('reportDisplay');
-            if (!monthYear) { 
-                display.innerHTML = "<p style='color:red;'>Pilih bulan dan tahun.</p>"; 
-                printBtn.style.display = 'none'; 
-                deleteAllBtn.style.display = 'none'; // <-- Sembunyikan
-                return; 
+            if (!monthYear) {
+                display.innerHTML = "<p style='color:red;'>Pilih bulan dan tahun.</p>";
+                reportActions.style.display = 'none'; // Sembunyikan container
+                return;
             }
             display.innerHTML = "<p>Memuat laporan...</p>";
-            btn.disabled = true; btn.innerText = "Memuat..."; 
-            printBtn.style.display = 'none';
-            deleteAllBtn.style.display = 'none'; // <-- Sembunyikan saat memuat
+            btn.disabled = true; btn.innerText = "Memuat...";
+            reportActions.style.display = 'none'; // Sembunyikan container saat memuat
 
             google.script.run.withSuccessHandler(function(htmlContent) {
                 display.innerHTML = htmlContent;
                 if (htmlContent && !htmlContent.startsWith("<p>Error:") && !htmlContent.includes("Tidak ada data kegiatan untuk periode ini.")) {
-                    printBtn.style.display = 'inline-block';
-                    deleteAllBtn.style.display = 'inline-block'; // <-- Tampilkan jika ada data
+                    reportActions.style.display = 'block'; // Tampilkan container jika ada data
                 } else {
-                    printBtn.style.display = 'none';
-                    deleteAllBtn.style.display = 'none'; // <-- Sembunyikan jika tidak ada data
+                    reportActions.style.display = 'none'; // Sembunyikan jika tidak ada data atau error
                 }
                 btn.disabled = false; btn.innerText = "Tampilkan Laporan";
-            }).withFailureHandler(function(error) { 
-                display.innerHTML = "<p style='color:red;'>Gagal memuat laporan: " + error.message + "</p>"; 
-                btn.disabled = false; btn.innerText = "Tampilkan Laporan"; 
-                printBtn.style.display = 'none'; 
-                deleteAllBtn.style.display = 'none'; // <-- Sembunyikan jika error
+            }).withFailureHandler(function(error) {
+                display.innerHTML = "<p style='color:red;'>Gagal memuat laporan: " + error.message + "</p>";
+                btn.disabled = false; btn.innerText = "Tampilkan Laporan";
+                reportActions.style.display = 'none'; // Sembunyikan jika error
             }).generateReportHtmlForMonth(monthYear);
         }
         
@@ -697,6 +694,40 @@
                     msgEl.className = "message error";
                 })
                 .updateTeacherDetails(updatedInfo);
+        }
+
+        function handleExportExcel() {
+            const excelBtn = document.getElementById('exportExcelButton');
+            const originalBtnText = excelBtn.innerText;
+            excelBtn.disabled = true;
+            excelBtn.innerText = 'Membuat Excel...';
+
+            const monthYear = document.getElementById('reportMonth').value;
+            if (!monthYear) {
+                alert("Pilih bulan dan tahun terlebih dahulu.");
+                excelBtn.disabled = false;
+                excelBtn.innerText = originalBtnText;
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    excelBtn.disabled = false;
+                    excelBtn.innerText = originalBtnText;
+
+                    if (response.status === 'success') {
+                        alert('File Excel berhasil dibuat. Jendela download akan segera terbuka.');
+                        window.open(response.excelUrl, '_blank');
+                    } else {
+                        alert('Gagal membuat file Excel: ' + response.message);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    excelBtn.disabled = false;
+                    excelBtn.innerText = originalBtnText;
+                    alert('Terjadi error di server saat membuat file Excel: ' + error.message);
+                })
+                .generateExcelReport(monthYear);
         }
     </script>
 </body>
