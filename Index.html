@@ -115,6 +115,7 @@
             <div id="reportDisplay" class="report-display"></div>
         </div>
         <button id="printReportButton" onclick="printReport()" style="display:none; margin-top:10px; background-color: #17a2b8;">Cetak Laporan</button>
+        <button id="deleteAllEntriesButton" onclick="handleDeleteAllEntries()" style="display:none; margin-top:10px; background-color: #dc3545; margin-left: 10px;">Hapus Semua Kegiatan</button>
     </div>
 
     <div id="editLkhModal" class="modal">
@@ -453,43 +454,140 @@
             const monthYear = document.getElementById('reportMonth').value;
             const btn = document.getElementById('generateReportButton');
             const printBtn = document.getElementById('printReportButton');
+            const deleteAllBtn = document.getElementById('deleteAllEntriesButton'); // <-- Tambahkan variabel untuk tombol baru
             const display = document.getElementById('reportDisplay');
-            if (!monthYear) { display.innerHTML = "<p style='color:red;'>Pilih bulan dan tahun.</p>"; printBtn.style.display = 'none'; return; }
+            if (!monthYear) { 
+                display.innerHTML = "<p style='color:red;'>Pilih bulan dan tahun.</p>"; 
+                printBtn.style.display = 'none'; 
+                deleteAllBtn.style.display = 'none'; // <-- Sembunyikan
+                return; 
+            }
             display.innerHTML = "<p>Memuat laporan...</p>";
-            btn.disabled = true; btn.innerText = "Memuat..."; printBtn.style.display = 'none';
+            btn.disabled = true; btn.innerText = "Memuat..."; 
+            printBtn.style.display = 'none';
+            deleteAllBtn.style.display = 'none'; // <-- Sembunyikan saat memuat
+
             google.script.run.withSuccessHandler(function(htmlContent) {
                 display.innerHTML = htmlContent;
                 if (htmlContent && !htmlContent.startsWith("<p>Error:") && !htmlContent.includes("Tidak ada data kegiatan untuk periode ini.")) {
-                     printBtn.style.display = 'inline-block';
+                    printBtn.style.display = 'inline-block';
+                    deleteAllBtn.style.display = 'inline-block'; // <-- Tampilkan jika ada data
                 } else {
-                     printBtn.style.display = 'none';
+                    printBtn.style.display = 'none';
+                    deleteAllBtn.style.display = 'none'; // <-- Sembunyikan jika tidak ada data
                 }
                 btn.disabled = false; btn.innerText = "Tampilkan Laporan";
-            }).withFailureHandler(function(error) { display.innerHTML = "<p style='color:red;'>Gagal memuat laporan: " + error.message + "</p>"; btn.disabled = false; btn.innerText = "Tampilkan Laporan"; printBtn.style.display = 'none';}).generateReportHtmlForMonth(monthYear);
+            }).withFailureHandler(function(error) { 
+                display.innerHTML = "<p style='color:red;'>Gagal memuat laporan: " + error.message + "</p>"; 
+                btn.disabled = false; btn.innerText = "Tampilkan Laporan"; 
+                printBtn.style.display = 'none'; 
+                deleteAllBtn.style.display = 'none'; // <-- Sembunyikan jika error
+            }).generateReportHtmlForMonth(monthYear);
         }
         
+        function handleDeleteAllEntries() {
+            const monthYear = document.getElementById('reportMonth').value;
+            if (!monthYear) {
+                alert("Silakan pilih bulan dan tahun terlebih dahulu.");
+                return;
+            }
+
+            const date = new Date(monthYear + '-01');
+            const monthName = date.toLocaleString('id-ID', { month: 'long' });
+            const year = date.getFullYear();
+
+            if (confirm(`Apakah Anda yakin ingin menghapus SEMUA kegiatan di bulan ${monthName} ${year}? Tindakan ini tidak dapat dibatalkan.`)) {
+                const btn = document.getElementById('deleteAllEntriesButton');
+                btn.disabled = true;
+                btn.innerText = "Menghapus...";
+
+                google.script.run
+                    .withSuccessHandler(function(response) {
+                        alert(response.message); // Tampilkan pesan dari server
+                        btn.disabled = false;
+                        btn.innerText = "Hapus Semua Kegiatan";
+                        if (response.status === 'success') {
+                            // Muat ulang laporan untuk menampilkan data yang sudah kosong
+                            handleGenerateReport(); 
+                        }
+                    })
+                    .withFailureHandler(function(error) {
+                        alert("Gagal menghapus kegiatan: " + error.message);
+                        btn.disabled = false;
+                        btn.innerText = "Hapus Semua Kegiatan";
+                    })
+                    .deleteAllLkhEntriesForMonth(monthYear);
+            }
+        }
+
+        // function printReport() { ... } // <- fungsi yang sudah ada sebelumnya
+
         function printReport() {
-            const reportContent = document.getElementById('reportDisplay').innerHTML;
-            if (reportContent && !reportContent.includes("Tidak ada data kegiatan") && !reportContent.includes("<p>Error:")) {
+            const reportDisplay = document.getElementById('reportDisplay');
+            const reportContent = reportDisplay.innerHTML;
+
+            // Hentikan jika tidak ada laporan yang valid untuk dicetak
+            if (!reportContent || reportContent.includes("Tidak ada data kegiatan") || reportContent.includes("<p>Error:")) {
+                alert("Tidak ada laporan valid untuk dicetak.");
+                return;
+            }
+
+            // Fungsi inti untuk membuka jendela cetak dan mencetak
+            const triggerPrintProcess = () => {
                 const printWindow = window.open('', '_blank', 'height=800,width=1000');
                 printWindow.document.write('<html><head><title>Cetak Laporan</title>');
-                
+
+                // Salin semua style dari halaman utama ke jendela cetak
                 const styleSheets = document.querySelectorAll('style, link[rel="stylesheet"]');
                 styleSheets.forEach(styleSheet => {
                     if (styleSheet.tagName === 'STYLE') {
                         printWindow.document.write('<style>' + styleSheet.innerHTML + '</style>');
                     } else if (styleSheet.tagName === 'LINK') {
-                         printWindow.document.write(styleSheet.outerHTML);
+                        printWindow.document.write(styleSheet.outerHTML);
                     }
                 });
 
                 printWindow.document.write('</head><body>');
-                printWindow.document.write(reportContent); 
+                printWindow.document.write(reportContent); // Tulis konten laporan
                 printWindow.document.write('</body></html>');
-                printWindow.document.close(); 
-                printWindow.focus(); 
-                setTimeout(function(){ printWindow.print(); }, 500);
-            } else { alert("Tidak ada laporan valid untuk dicetak."); }
+                printWindow.document.close();
+                printWindow.focus();
+
+                // Beri jeda 1 detik agar semua elemen (terutama gambar) sempat dirender di jendela baru
+                setTimeout(() => {
+                    printWindow.print();
+                }, 1000); 
+            };
+
+            // Cari elemen gambar kop surat di dalam laporan
+            const reportImage = reportDisplay.querySelector('.report-container .header img');
+
+            // Jika ada gambar kop surat, muat dulu gambarnya sebelum mencetak
+            if (reportImage && reportImage.src) {
+                console.log("Memuat gambar kop surat sebelum mencetak...");
+                const imageLoader = new Image();
+                
+                // Ketika gambar SUKSES dimuat
+                imageLoader.onload = () => {
+                    console.log("Gambar berhasil dimuat. Memulai proses cetak.");
+                    triggerPrintProcess();
+                };
+
+                // Jika gambar GAGAL dimuat (misal: link rusak)
+                imageLoader.onerror = () => {
+                    console.error("Gagal memuat gambar kop surat. Laporan akan tetap dicetak tanpanya.");
+                    alert("Peringatan: Gagal memuat gambar kop surat. Laporan akan dicetak tanpanya.");
+                    triggerPrintProcess();
+                };
+
+                // Trik untuk memastikan gambar diambil dari server (bukan cache lama)
+                imageLoader.src = reportImage.src + '?t=' + new Date().getTime();
+
+            } else {
+                // Jika tidak ada gambar, langsung cetak saja
+                console.log("Tidak ada gambar kop surat. Langsung mencetak.");
+                triggerPrintProcess();
+            }
         }
 
         function handleLogout() {
