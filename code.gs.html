@@ -28,6 +28,14 @@ function doGet(e) {
   }
 }
 
+function generateLkhId() {
+  let randomNumber = '';
+  for (let i = 0; i < 20; i++) {
+    randomNumber += Math.floor(Math.random() * 10);
+  }
+  return "LKH" + randomNumber;
+}
+
 function loginUser(email, password) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -223,7 +231,12 @@ function checkDuplicateLkhEntry(teacherId, dateOfActivity, description, output, 
 function addLkhEntry(entryData) {
   if (!checkUserSession()) return { status: 'error', message: 'Sesi tidak valid.' };
   const userDetails = getLoggedInUserDetails();
-  const dateOfActivity = new Date(entryData.dateOfActivity);
+  const dateString = entryData.dateOfActivity; // Ini adalah string YYYY-MM-DD
+  const parts = dateString.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // Bulan di JavaScript adalah 0-indexed
+  const day = parseInt(parts[2], 10);
+  const dateOfActivity = new Date(year, month, day); // Membuat tanggal pada tengah malam di zona waktu skrip
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   const dayName = days[dateOfActivity.getDay()];
 
@@ -233,7 +246,7 @@ function addLkhEntry(entryData) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const lkhSheet = ss.getSheetByName(LKH_ENTRIES_SHEET_NAME);
-    const newEntryId = "LKH" + new Date().getTime();
+    const newEntryId = generateLkhId();
     const orderInDay = getNextOrderInDay(lkhSheet, userDetails.teacherId, dateOfActivity);
     lkhSheet.appendRow([
       newEntryId, userDetails.teacherId, dateOfActivity, dayName,
@@ -268,7 +281,7 @@ function addRecurringLkhEntries(recurringData) {
           entriesSkippedCount++;
           continue;
         }
-        const newEntryId = "LKHREC" + currentDate.getTime() + "_" + targetDayOfWeek;
+        const newEntryId = generateLkhId();
         const dayName = daysInIndonesian[currentDate.getDay()];
         const orderInDay = getNextOrderInDay(lkhSheet, userDetails.teacherId, currentDate);
         lkhSheet.appendRow([
@@ -451,7 +464,12 @@ function updateLkhEntry(entryId, updatedData) {
     if (rowIndex === -1) return { status: 'error', message: 'Entri tidak ditemukan untuk diperbarui.' };
     
     const sheetRow = rowIndex + 1;
-    const dateOfActivity = new Date(updatedData.dateOfActivity);
+    const dateString = updatedData.dateOfActivity; // Ini adalah string YYYY-MM-DD
+    const parts = dateString.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Bulan di JavaScript adalah 0-indexed
+    const day = parseInt(parts[2], 10);
+    const dateOfActivity = new Date(year, month, day); // Membuat tanggal pada tengah malam di zona waktu skrip
     const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const dayName = days[dateOfActivity.getDay()];
 
@@ -634,7 +652,7 @@ function generateReportHtmlForMonth(monthYear) {
       html += `<td style="text-align: center; vertical-align: middle;">${pEntry.volume ? String(pEntry.volume).replace(/\n/g, '<br>') : ''}</td>`;
       html += `<td></td>`; 
       html += `<td style="text-align: left; vertical-align: middle;">`;
-      html += `<button class="action-btn edit-btn" onclick="openEditModal('${pEntry.entryId}')">Edit</button>`;
+      html += `<button class="action-btn edit-btn" onclick="openEditModal('${pEntry.entryId}')" style="display:none;">Edit</button>`;
       html += `<button class="action-btn delete-btn" onclick="confirmDeleteEntry('${pEntry.entryId}')">Hapus</button>`;
       if (pEntry.groupSize > 1) { 
           if (!pEntry.isFirstInDayGroup) html += `<button class="action-btn move-btn" title="Naikkan" onclick="handleMoveEntryOrder('${pEntry.entryId}', 'up')">&uarr;</button>`;
