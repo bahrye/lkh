@@ -2,6 +2,7 @@ const SCHOOLS_SHEET_NAME = "Schools";
 const TEACHERS_SHEET_NAME = "Teachers";
 const LKH_ENTRIES_SHEET_NAME = "LKH_Entries";
 const KOP_SURAT_FOLDER_ID = "1uDxtZBTN5XthOsfXY3HfxvkhvWlyIbga";
+const PDF_REPORTS_FOLDER_ID = "1XIbDsk9ZR6eFkMGws0PUwLUfnerMC7H4"; 
 
 function doGet(e) {
   if (e.parameter.action === 'dashboard') {
@@ -990,5 +991,192 @@ function deleteAllLkhEntriesForMonth(monthYear) {
   } catch (e) {
     Logger.log('Error deleting all entries for month ' + monthYear + ': ' + e.toString() + " Stack: " + e.stack);
     return { status: 'error', message: 'Terjadi kesalahan saat menghapus kegiatan: ' + e.message };
+  }
+}
+
+function generatePdfReport(monthYear) {
+  if (!checkUserSession()) {
+    return { status: 'error', message: 'Sesi tidak valid. Silakan login ulang.' };
+  }
+
+  const user = getLoggedInUserDetails();
+  const school = getSchoolDetailsForCurrentUser();
+  const entries = getLkhEntriesForMonth(monthYear);
+
+  if (!user || !school) {
+    return { status: 'error', message: 'Gagal memuat data pengguna atau sekolah.' };
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const templateSheet = ss.getSheetByName('Template');
+  if (!templateSheet) {
+    return { status: 'error', message: 'Sheet "Template" tidak ditemukan di Google Sheets Anda.' };
+  }
+  
+  if (PDF_REPORTS_FOLDER_ID === "GANTI_DENGAN_ID_FOLDER_PDF_ANDA") {
+    return { status: 'error', message: 'Harap konfigurasikan PDF_REPORTS_FOLDER_ID di dalam skrip Code.gs terlebih dahulu.' };
+  }
+
+  const tempSheetName = `LKH_PDF_${user.fullName.replace(/\s/g, '_')}_${new Date().getTime()}`;
+  const tempSheet = templateSheet.copyTo(ss).setName(tempSheetName);
+  
+  let lastRow = 0;
+
+  try {
+    // 1. Masukkan Kop Surat agar pas di dalam sel B1:H1
+    let imageUrlForReport = '';
+    if (school && school._rawKopSuratSourceValue) {
+      const sourceVal = school._rawKopSuratSourceValue;
+      const sourceTyp = school._rawKopSuratSourceType || (sourceVal ? 'drive' : null);
+      if (sourceTyp === 'url') {
+        imageUrlForReport = sourceVal;
+      } else if (sourceTyp === 'drive') {
+        imageUrlForReport = `https://drive.google.com/uc?export=view&id=${sourceVal}`;
+      }
+    }
+    
+    if (imageUrlForReport) {
+      tempSheet.getRange('B1:H1').merge();
+      const cellImage = SpreadsheetApp.newCellImage()
+        .setSourceUrl(imageUrlForReport)
+        .build();
+      tempSheet.getRange('B1').setValue(cellImage);
+    }
+
+    // 2. Masukkan Judul Laporan di sel terpisah (B2, B3, B4)
+    tempSheet.getRange('B2').setValue('LAPORAN KINERJA HARIAN (LKH)').setHorizontalAlignment('center');
+    // --- PERBAIKAN TYPO DI BARIS INI ---
+    tempSheet.getRange('B3').setValue(`GURU DAN TENAGA KEPENDIDIKAN ${school.schoolName || ''}`).setHorizontalAlignment('center');
+    tempSheet.getRange('B4').setValue('PEMBELAJARAN TATAP MUKA').setHorizontalAlignment('center');
+
+
+    // 3. Masukkan Informasi Guru di sel baru (E6 - E11)
+    let reportPeriod = "Data tidak tersedia";
+    if (entries && entries.length > 0) {
+        const uniqueDates = [...new Set(entries.map(e => e.dateOfActivity))].sort();
+        const workingDays = uniqueDates.length;
+        const firstDate = new Date(uniqueDates[0]);
+        const lastDate = new Date(uniqueDates[uniqueDates.length - 1]);
+        reportPeriod = `${firstDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} - ${lastDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} (${workingDays} Hari Kerja)`;
+    } else if (monthYear) {
+      const [yearStrVal, monthNumVal] = monthYear.split('-');
+      reportPeriod = `Bulan ${new Date(parseInt(yearStrVal), parseInt(monthNumVal)-1, 1).toLocaleDateString('id-ID', { month: 'long' })} ${yearStrVal} (0 Hari Kerja)`;
+    }
+
+    tempSheet.getRange('E6').setValue(user.fullName || '');
+    tempSheet.getRange('E7').setValue(user.nip || '-');
+    tempSheet.getRange('E8').setValue(user.mainDuty || '');
+    tempSheet.getRange('E9').setValue(user.mataPelajaran || '-');
+    tempSheet.getRange('E10').setValue(user.kelas || '-');
+    tempSheet.getRange('E11').setValue(reportPeriod);
+
+    // 4. Masukkan data kegiatan ke tabel (mulai dari baris 15 dan kolom baru)
+    let currentRow = 15;
+    if (entries && entries.length > 0) {
+      let groupedByDate = {};
+      entries.forEach(entry => {
+        if (!groupedByDate[entry.dateOfActivity]) groupedByDate[entry.dateOfActivity] = [];
+        groupedByDate[entry.dateOfActivity].push(entry);
+      });
+      
+      let entryNumber = 0;
+      Object.keys(groupedByDate).sort().forEach(dateKey => {
+        entryNumber++;
+        const dateEntries = groupedByDate[dateKey];
+        const dateFormatted = `${dateEntries[0].dayOfActivity},\n${new Date(dateEntries[0].dateOfActivity).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`;
+        
+        tempSheet.getRange(currentRow, 2).setValue(entryNumber).setWrap(true);
+        tempSheet.getRange(currentRow, 3).setValue(dateFormatted).setWrap(true);
+        tempSheet.getRange(currentRow, 4).setValue(dateEntries[0].description).setWrap(true);
+        tempSheet.getRange(currentRow, 6).setValue(dateEntries[0].output).setWrap(true);
+        tempSheet.getRange(currentRow, 7).setValue(dateEntries[0].volume).setWrap(true);
+        
+        if (dateEntries.length > 1) {
+          tempSheet.getRange(currentRow, 2, dateEntries.length, 1).merge().setVerticalAlignment('middle');
+          tempSheet.getRange(currentRow, 3, dateEntries.length, 1).merge().setVerticalAlignment('middle');
+          
+          for(let i = 1; i < dateEntries.length; i++) {
+             tempSheet.getRange(currentRow + i, 4).setValue(dateEntries[i].description).setWrap(true);
+             tempSheet.getRange(currentRow + i, 6).setValue(dateEntries[i].output).setWrap(true);
+             tempSheet.getRange(currentRow + i, 7).setValue(dateEntries[i].volume).setWrap(true);
+          }
+        }
+        
+        tempSheet.getRange(currentRow, 2, dateEntries.length, 7).setBorder(true, true, true, true, true, true);
+        
+        currentRow += dateEntries.length;
+      });
+    } else {
+      tempSheet.getRange(currentRow, 2, 1, 7).merge().setValue('Tidak ada data kegiatan untuk periode ini.').setHorizontalAlignment('center');
+      currentRow++;
+    }
+    
+    lastRow = currentRow - 1;
+
+    // 5. Masukkan Tanda Tangan dengan perataan KIRI
+    const signatureStartRow = lastRow + 3;
+    const dateForFooterSignature = (entries.length > 0) ? new Date(entries[entries.length - 1].dateOfActivity).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+    
+    let locationName = 'Butung';
+    if (school.schoolAddress) {
+      const addressParts = school.schoolAddress.split(/[ ,]+/);
+      locationName = (addressParts.length > 0) ? addressParts[0] : 'Butung';
+      locationName = locationName.charAt(0).toUpperCase() + locationName.slice(1).toLowerCase();
+    }
+    
+    // Blok Mengetahui (Kolom C)
+    tempSheet.getRange(signatureStartRow, 3).setValue(`Mengetahui,\n${school.typeKepalaMadrasah || 'Kepala Madrasah'}`).setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW).setHorizontalAlignment('left');
+    const headmasterNameCell = tempSheet.getRange(signatureStartRow + 4, 3);
+    headmasterNameCell.setValue(school.headmasterName || '');
+    headmasterNameCell.setFontWeight('bold');
+    headmasterNameCell.setFontLine('underline');
+    headmasterNameCell.setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW).setHorizontalAlignment('left');
+    tempSheet.getRange(signatureStartRow + 5, 3).setValue(`NIP. ${school.headmasterNIP || '-'}`).setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW).setHorizontalAlignment('left');
+
+    // Blok Guru Pengajar (Kolom G)
+    tempSheet.getRange(signatureStartRow, 7).setValue(`${locationName}, ${dateForFooterSignature}\nGuru Pengajar`).setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW).setHorizontalAlignment('left');
+    const teacherNameCell = tempSheet.getRange(signatureStartRow + 4, 7);
+    teacherNameCell.setValue((user.fullName || '').toUpperCase());
+    teacherNameCell.setFontWeight('bold');
+    teacherNameCell.setFontLine('underline');
+    teacherNameCell.setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW).setHorizontalAlignment('left');
+    tempSheet.getRange(signatureStartRow + 5, 7).setValue(`NIP. ${user.nip || '-'}`).setWrapStrategy(SpreadsheetApp.WrapStrategy.OVERFLOW).setHorizontalAlignment('left');
+    
+    lastRow = signatureStartRow + 5;
+
+    // 6. Buat PDF dari sheet sementara dengan range A1:I
+    SpreadsheetApp.flush();
+    
+    const pdfOptions = {
+      exportFormat: 'pdf',
+      format: 'pdf',
+      size: 'A4',
+      portrait: true,
+      fitw: true,
+      sheetnames: false,
+      printtitle: false,
+      gridlines: false,
+      gid: tempSheet.getSheetId(),
+      c1: 0,
+      r1: 0,
+      c2: 9,
+      r2: lastRow 
+    };
+    const url = `https://docs.google.com/spreadsheets/d/${ss.getId()}/export?` + Object.entries(pdfOptions).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+    const token = ScriptApp.getOAuthToken();
+    const pdfBlob = UrlFetchApp.fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }).getBlob();
+    
+    const pdfFolder = DriveApp.getFolderById(PDF_REPORTS_FOLDER_ID);
+    const pdfFile = pdfFolder.createFile(pdfBlob).setName(`LKH - ${user.fullName} - ${monthYear}.pdf`);
+    
+    const downloadUrl = pdfFile.getUrl().replace(/file\/d\/(.+)\/view.+/, 'uc?export=download&id=$1');
+
+    return { status: 'success', pdfUrl: downloadUrl };
+
+  } catch (e) {
+    Logger.log("Error in generatePdfReport: " + e.message + " Stack: " + e.stack);
+    return { status: 'error', message: 'Terjadi kesalahan saat membuat PDF: ' + e.message };
+  } finally {
+    ss.deleteSheet(tempSheet);
   }
 }
