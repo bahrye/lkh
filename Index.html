@@ -526,68 +526,38 @@
             const reportDisplay = document.getElementById('reportDisplay');
             const reportContent = reportDisplay.innerHTML;
 
-            // Hentikan jika tidak ada laporan yang valid untuk dicetak
+            // Hentikan jika tidak ada laporan yang valid
             if (!reportContent || reportContent.includes("Tidak ada data kegiatan") || reportContent.includes("<p>Error:")) {
-                alert("Tidak ada laporan valid untuk dicetak.");
+                alert("Tidak ada laporan valid untuk dibuatkan PDF.");
                 return;
             }
 
-            // Fungsi inti untuk membuka jendela cetak dan mencetak
-            const triggerPrintProcess = () => {
-                const printWindow = window.open('', '_blank', 'height=800,width=1000');
-                printWindow.document.write('<html><head><title>Cetak Laporan</title>');
+            const printBtn = document.getElementById('printReportButton');
+            const originalBtnText = printBtn.innerText;
+            printBtn.disabled = true;
+            printBtn.innerText = 'Membuat PDF...';
 
-                // Salin semua style dari halaman utama ke jendela cetak
-                const styleSheets = document.querySelectorAll('style, link[rel="stylesheet"]');
-                styleSheets.forEach(styleSheet => {
-                    if (styleSheet.tagName === 'STYLE') {
-                        printWindow.document.write('<style>' + styleSheet.innerHTML + '</style>');
-                    } else if (styleSheet.tagName === 'LINK') {
-                        printWindow.document.write(styleSheet.outerHTML);
+            const monthYear = document.getElementById('reportMonth').value;
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    printBtn.disabled = false;
+                    printBtn.innerText = originalBtnText;
+
+                    if (response.status === 'success') {
+                        alert('PDF berhasil dibuat. Jendela download akan segera terbuka.');
+                        // Buka URL download di tab baru
+                        window.open(response.pdfUrl, '_blank');
+                    } else {
+                        alert('Gagal membuat PDF: ' + response.message);
                     }
-                });
-
-                printWindow.document.write('</head><body>');
-                printWindow.document.write(reportContent); // Tulis konten laporan
-                printWindow.document.write('</body></html>');
-                printWindow.document.close();
-                printWindow.focus();
-
-                // Beri jeda 1 detik agar semua elemen (terutama gambar) sempat dirender di jendela baru
-                setTimeout(() => {
-                    printWindow.print();
-                }, 1000); 
-            };
-
-            // Cari elemen gambar kop surat di dalam laporan
-            const reportImage = reportDisplay.querySelector('.report-container .header img');
-
-            // Jika ada gambar kop surat, muat dulu gambarnya sebelum mencetak
-            if (reportImage && reportImage.src) {
-                console.log("Memuat gambar kop surat sebelum mencetak...");
-                const imageLoader = new Image();
-                
-                // Ketika gambar SUKSES dimuat
-                imageLoader.onload = () => {
-                    console.log("Gambar berhasil dimuat. Memulai proses cetak.");
-                    triggerPrintProcess();
-                };
-
-                // Jika gambar GAGAL dimuat (misal: link rusak)
-                imageLoader.onerror = () => {
-                    console.error("Gagal memuat gambar kop surat. Laporan akan tetap dicetak tanpanya.");
-                    alert("Peringatan: Gagal memuat gambar kop surat. Laporan akan dicetak tanpanya.");
-                    triggerPrintProcess();
-                };
-
-                // Trik untuk memastikan gambar diambil dari server (bukan cache lama)
-                imageLoader.src = reportImage.src + '?t=' + new Date().getTime();
-
-            } else {
-                // Jika tidak ada gambar, langsung cetak saja
-                console.log("Tidak ada gambar kop surat. Langsung mencetak.");
-                triggerPrintProcess();
-            }
+                })
+                .withFailureHandler(function(error) {
+                    printBtn.disabled = false;
+                    printBtn.innerText = originalBtnText;
+                    alert('Terjadi error di server saat membuat PDF: ' + error.message);
+                })
+                .generatePdfReport(monthYear);
         }
 
         function handleLogout() {
