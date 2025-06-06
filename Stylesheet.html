@@ -137,4 +137,64 @@ button:disabled { background-color: #6c757d; cursor: not-allowed; }
 .modal-content button { padding: 10px 15px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top:15px; }
 .move-btn { background-color: #6c757d; color: white; border-color: #6c757d; padding: 2px 6px; line-height: 1; }
 .move-btn:hover { background-color: #5a6268; border-color: #545b62; }
+
+@media print {
+  /* Sembunyikan semua elemen yang tidak relevan di halaman utama */
+  body > .container > header,
+  .user-info,
+  .school-info,
+  .kop-surat-management,
+  .lkh-form,
+  .recurring-lkh-form,
+  .report-section h3,
+  .report-section label,
+  .report-section input[type="month"],
+  .report-section button,
+  #printReportButton,
+  #deleteAllEntriesButton,
+  .modal {
+    display: none !important;
+  }
+
+  /* Sembunyikan kolom terakhir (Aksi) pada tabel data */
+  .report-container .data-table th:last-child,
+  .report-container .data-table td:last-child {
+    display: none !important;
+  }
+  
+  /* ======================================================= */
+  /* ===== TAMBAHAN BARU UNTUK MENAMPILKAN KOP SURAT ===== */
+  /* ======================================================= */
+  .report-container .header, .report-container .header * {
+      display: block !important; /* Memaksa header dan semua isinya untuk tampil */
+  }
+
+  img {
+      print-color-adjust: exact !important;
+      -webkit-print-color-adjust: exact !important; /* Untuk Chrome, Safari, Edge */
+  }
+  /* ======================================================= */
+  /* ================= AKHIR BAGIAN BARU =================== */
+  /* ======================================================= */
+
+  /* Pastikan konten laporan menggunakan seluruh halaman cetak */
+  body, .container {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #fff !important;
+  }
+
+  .report-display, .report-container {
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Atur ukuran kertas ke A4 dan definisikan margin */
+  @page {
+    size: A4;
+    margin: 1.5cm; /* Margin bisa disesuaikan jika perlu */
+  }
+}
 </style>
