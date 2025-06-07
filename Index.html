@@ -7,119 +7,157 @@
     <?!= include('Stylesheet'); ?>
 </head>
 <body>
+    <nav class="sticky-nav">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1>LKH Online</h1>
+            </div>
+            <div class="nav-links">
+                <ul>
+                    <li><a href="#" class="nav-item active" data-view="dashboard">Dashboard</a></li>
+                    <li><a href="#" class="nav-item" data-view="lkh">Input LKH</a></li>
+                    <li><a href="#" class="nav-item" data-view="kop">Pengaturan Kop Surat</a></li>
+                    <li class="logout-item">
+                        <div class="user-info">
+                            <button onclick="handleLogout()">Logout</button>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <button class="hamburger-menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+    
     <div class="container">
-        <header>
-            <h1>LKH Online</h1>
-            <div class="user-info"> Halo, <span id="userInfoName">Memuat...</span> | <button onclick="handleLogout()">Logout</button> </div>
-        </header>
-
-        <div class="school-info card">
-            <h3>Informasi Guru & Sekolah</h3>
-            <p><strong>Nama Guru:</strong> <span id="teacherName"></span></p>
-            <label for="inputTeacherDuty">Tugas Pokok:</label>
-            <input type="text" id="inputTeacherDuty" class="teacher-info-input">
-
-            <label for="inputTeacherSubject">Mata Pelajaran:</label>
-            <input type="text" id="inputTeacherSubject" class="teacher-info-input">
-
-            <label for="inputTeacherClass">Kelas:</label>
-            <input type="text" id="inputTeacherClass" class="teacher-info-input">
-
-            <button id="saveTeacherInfoButton" onclick="handleUpdateTeacherInfo()">Simpan Informasi Guru</button>
-            <p id="teacherInfoMessage" class="message" style="margin-top:10px;"></p>
-
-            <hr style="margin: 20px 0;">
-            <p><strong>Sekolah:</strong> <span id="schoolName"></span></p>
+        <div id="view-dashboard" class="view active">
+            <div class="welcome-card card">
+                <h2 id="welcome-greeting">Selamat Datang!</h2>
+                <p>Ini adalah halaman utama dasbor LKH Online Anda. Anda dapat memperbarui informasi pribadi atau langsung menuju ke halaman input LKH dan pengaturan kop surat melalui menu navigasi di atas atau tombol di bawah ini.</p>
+                <div class="dashboard-actions">
+                    <button onclick="document.querySelector('a[data-view=lkh]').click()">&#43; Input Data LKH</button>
+                    <button onclick="document.querySelector('a[data-view=kop]').click()" style="background-color: #ffc107; color: #333;">&#9881; Atur Kop Surat</button>
+                </div>
+            </div>
+            <div class="school-info card">
+                <h3>Informasi Guru & Sekolah</h3>
+                <p><strong>Nama Guru:</strong> <span id="teacherName"></span></p>
+                <label for="inputTeacherDuty">Tugas Pokok:</label>
+                <input type="text" id="inputTeacherDuty" class="teacher-info-input">
+                <label for="inputTeacherSubject">Mata Pelajaran:</label>
+                <input type="text" id="inputTeacherSubject" class="teacher-info-input">
+                <label for="inputTeacherClass">Kelas:</label>
+                <input type="text" id="inputTeacherClass" class="teacher-info-input">
+                <button id="saveTeacherInfoButton" onclick="handleUpdateTeacherInfo()">Simpan Informasi Guru</button>
+                <p id="teacherInfoMessage" class="message" style="margin-top:10px;"></p>
+                <hr style="margin: 20px 0;">
+                <p><strong>Sekolah:</strong> <span id="schoolName"></span></p>
+            </div>
         </div>
 
-        <div class="kop-surat-management card">
-            <h3>Pengaturan Kop Surat</h3>
-            <label>Sumber Kop Surat:</label>
-            <div>
-                <input type="radio" id="kopSourceUpload" name="kopSource" value="upload" checked onchange="toggleKopSuratInput()">
-                <label for="kopSourceUpload" style="display:inline-block; margin-right:15px; font-weight:normal;">Upload File</label>
-                <input type="radio" id="kopSourceUrl" name="kopSource" value="url" onchange="toggleKopSuratInput()">
-                <label for="kopSourceUrl" style="display:inline-block; font-weight:normal;">Gunakan URL Gambar</label>
-            </div>
-            <div id="kopFileUploadGroup">
-                <label for="kopSuratFile">Upload Gambar Kop Surat (Max. 1MB, Format: JPG/PNG):</label>
-                <input type="file" id="kopSuratFile" accept="image/jpeg, image/png" style="width:auto;">
-            </div>
-            <div id="kopUrlInputGroup" style="display:none;">
-                <label for="kopSuratImageUrl">URL Gambar Kop Surat:</label>
-                <input type="text" id="kopSuratImageUrl" placeholder="https://example.com/path/to/image.png">
-            </div>
-            <div style="margin-top:10px;">
-                <label>Preview Kop Surat Saat Ini:</label>
-                <div id="kopSuratPreviewContainer" style="border:1px dashed #ccc; min-height:100px; padding:10px; text-align:center;">
-                    <img id="kopSuratPreview" src="#" alt="Preview Kop Surat" style="max-width:100%; max-height:200px; display:none;">
-                    <span id="noKopSuratMessage">Belum ada kop surat terupload atau URL valid.</span>
-                </div>
-            </div>
-             <div class="form-grid" style="margin-top:15px;">
+        <div id="view-kop" class="view">
+             <div class="kop-surat-management card">
+                <h3>Pengaturan Kop Surat</h3>
+                <label>Sumber Kop Surat:</label>
                 <div>
-                    <label for="kopSuratWidth">Lebar Kop Surat (cth: 600px atau 100%):</label>
-                    <input type="text" id="kopSuratWidth" placeholder="100%">
+                    <input type="radio" id="kopSourceUpload" name="kopSource" value="upload" checked onchange="toggleKopSuratInput()">
+                    <label for="kopSourceUpload" style="display:inline-block; margin-right:15px; font-weight:normal;">Upload File</label>
+                    <input type="radio" id="kopSourceUrl" name="kopSource" value="url" onchange="toggleKopSuratInput()">
+                    <label for="kopSourceUrl" style="display:inline-block; font-weight:normal;">Gunakan URL Gambar</label>
                 </div>
-                <div>
-                    <label for="kopSuratHeight">Tinggi Kop Surat (cth: 150px atau auto):</label>
-                    <input type="text" id="kopSuratHeight" placeholder="auto">
+                <div id="kopFileUploadGroup">
+                    <label for="kopSuratFile">Upload Gambar Kop Surat (Max. 1MB, Format: JPG/PNG):</label>
+                    <input type="file" id="kopSuratFile" accept="image/jpeg, image/png" style="width:auto;">
                 </div>
-                <div>
-                    <label for="kopSuratAlignment">Perataan Kop Surat:</label>
-                    <select id="kopSuratAlignment">
-                        <option value="left">Kiri</option>
-                        <option value="center" selected>Tengah</option>
-                        <option value="right">Kanan</option>
+                <div id="kopUrlInputGroup" style="display:none;">
+                    <label for="kopSuratImageUrl">URL Gambar Kop Surat:</label>
+                    <input type="text" id="kopSuratImageUrl" placeholder="https://example.com/path/to/image.png">
+                </div>
+                <div style="margin-top:10px;">
+                    <label>Preview Kop Surat Saat Ini:</label>
+                    <div id="kopSuratPreviewContainer" style="border:1px dashed #ccc; min-height:100px; padding:10px; text-align:center;">
+                        <img id="kopSuratPreview" src="#" alt="Preview Kop Surat" style="max-width:100%; max-height:200px; display:none;">
+                        <span id="noKopSuratMessage">Belum ada kop surat terupload atau URL valid.</span>
+                    </div>
+                </div>
+                <div class="form-grid" style="margin-top:15px;">
+                    <div>
+                        <label for="kopSuratWidth">Lebar Kop Surat (cth: 600px atau 100%):</label>
+                        <input type="text" id="kopSuratWidth" placeholder="100%">
+                    </div>
+                    <div>
+                        <label for="kopSuratHeight">Tinggi Kop Surat (cth: 150px atau auto):</label>
+                        <input type="text" id="kopSuratHeight" placeholder="auto">
+                    </div>
+                    <div>
+                        <label for="kopSuratAlignment">Perataan Kop Surat:</label>
+                        <select id="kopSuratAlignment">
+                            <option value="left">Kiri</option>
+                            <option value="center" selected>Tengah</option>
+                            <option value="right">Kanan</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="uploadKopSuratButton" onclick="handleUploadKopSurat()">Simpan Kop & Pengaturan</button>
+                <button id="deleteKopSuratButton" onclick="handleDeleteKopSurat()" style="background-color:#dc3545; margin-left:10px;">Hapus Kop Surat</button>
+                <p id="kopSuratMessage" class="message"></p>
+            </div>
+        </div>
+
+        <div id="view-lkh" class="view">
+            <div class="lkh-form card">
+                <h3>Tambah Kegiatan Harian</h3>
+                <div class="form-grid">
+                    <div> <label for="dateOfActivity">Tanggal Kegiatan:</label> <input type="date" id="dateOfActivity" required> </div>
+                    <div> <label for="volume">Volume/Keterangan (JPM, dll.):</label> <input type="text" id="volume" required placeholder="Contoh: 6 Orang Siswa atau 5 JPM"> </div>
+                </div>
+                <label for="description">Uraian Kegiatan:</label>
+                <textarea id="description" rows="3" required placeholder="Contoh: Ceklok Masuk&#10;Melaksanakan kebersihan Madrasah&#10;..."></textarea>
+                <label for="output">Hasil/Output:</label>
+                <textarea id="output" rows="3" required placeholder="Contoh: Bukti hadir/Disiplin Kerja&#10;Guru dan Siswa&#10;..."></textarea>
+                <button id="addEntryButton" onclick="handleAddEntry()">Tambah Kegiatan</button>
+                <p id="addEntryMessage" class="message"></p>
+            </div>
+            
+            <div class="card">
+                <div class="recurring-toggle">
+                    <input type="checkbox" id="toggleRecurringForm">
+                    <label for="toggleRecurringForm">Input Kegiatan Mingguan Berulang?</label>
+                </div>
+                
+                <div class="recurring-lkh-form" style="display: none;">
+                    <h3>Input Kegiatan Mingguan Berulang</h3>
+                    <p>Gunakan form ini untuk mengisi kegiatan yang sama setiap minggu pada hari tertentu dalam satu bulan.</p>
+                    <label for="recurringMonthYear">Pilih Bulan & Tahun:</label> <input type="month" id="recurringMonthYear">
+                    <label for="recurringDayOfWeek">Pilih Hari dalam Seminggu:</label>
+                    <select id="recurringDayOfWeek">
+                        <option value="1">Senin</option> <option value="2">Selasa</option> <option value="3">Rabu</option>
+                        <option value="4">Kamis</option> <option value="5">Jumat</option> <option value="6">Sabtu</option>
                     </select>
+                    <label for="recurringDescription">Uraian Kegiatan:</label> <textarea id="recurringDescription" rows="3" placeholder="..."></textarea>
+                    <label for="recurringOutput">Hasil/Output:</label> <textarea id="recurringOutput" rows="3" placeholder="..."></textarea>
+                    <label for="recurringVolume">Volume/Keterangan:</label> <textarea id="recurringVolume" rows="2" placeholder="..."></textarea>
+                    <button id="addRecurringEntryButton" onclick="handleAddRecurringEntry()">Simpan Kegiatan Berulang</button>
+                    <p id="addRecurringEntryMessage" class="message"></p>
                 </div>
             </div>
-            <button id="uploadKopSuratButton" onclick="handleUploadKopSurat()">Simpan Kop & Pengaturan</button>
-            <button id="deleteKopSuratButton" onclick="handleDeleteKopSurat()" style="background-color:#dc3545; margin-left:10px;">Hapus Kop Surat</button>
-            <p id="kopSuratMessage" class="message"></p>
-        </div>
 
-        <div class="lkh-form card">
-            <h3>Tambah Kegiatan Harian</h3>
-            <div class="form-grid">
-                <div> <label for="dateOfActivity">Tanggal Kegiatan:</label> <input type="date" id="dateOfActivity" required> </div>
-                <div> <label for="volume">Volume/Keterangan (JPM, dll.):</label> <input type="text" id="volume" required placeholder="Contoh: 6 Orang Siswa atau 5 JPM"> </div>
+            <div class="report-section card">
+                <h3>Generate Laporan Bulanan</h3>
+                <label for="reportMonth">Pilih Bulan & Tahun:</label> <input type="month" id="reportMonth">
+                <button id="generateReportButton" onclick="handleGenerateReport()">Tampilkan Laporan</button>
+                <div id="reportDisplay" class="report-display"></div>
             </div>
-            <label for="description">Uraian Kegiatan:</label>
-            <textarea id="description" rows="3" required placeholder="Contoh: Ceklok Masuk&#10;Melaksanakan kebersihan Madrasah&#10;..."></textarea>
-            <label for="output">Hasil/Output:</label>
-            <textarea id="output" rows="3" required placeholder="Contoh: Bukti hadir/Disiplin Kerja&#10;Guru dan Siswa&#10;..."></textarea>
-            <button id="addEntryButton" onclick="handleAddEntry()">Tambah Kegiatan</button>
-            <p id="addEntryMessage" class="message"></p>
+            <div id="reportActionsContainer" style="display:none; margin-top:10px; padding: 0 10px 20px 10px;">
+                <button id="printReportButton" onclick="printReport()" style="background-color: #17a2b8;">Cetak ke PDF</button>
+                <button id="exportExcelButton" onclick="handleExportExcel()" style="background-color: #218838; margin-left: 10px;">Cetak ke Excel</button>
+                <button id="deleteAllEntriesButton" onclick="handleDeleteAllEntries()" style="background-color: #dc3545; margin-left: 10px;">Hapus Semua Kegiatan</button>
+            </div>
         </div>
-
-        <div class="recurring-lkh-form card">
-            <h3>Input Kegiatan Mingguan Berulang</h3>
-            <p>Gunakan form ini untuk mengisi kegiatan yang sama setiap minggu pada hari tertentu dalam satu bulan.</p>
-            <label for="recurringMonthYear">Pilih Bulan & Tahun:</label> <input type="month" id="recurringMonthYear">
-            <label for="recurringDayOfWeek">Pilih Hari dalam Seminggu:</label>
-            <select id="recurringDayOfWeek">
-                <option value="1">Senin</option> <option value="2">Selasa</option> <option value="3">Rabu</option>
-                <option value="4">Kamis</option> <option value="5">Jumat</option> <option value="6">Sabtu</option>
-            </select>
-            <label for="recurringDescription">Uraian Kegiatan:</label> <textarea id="recurringDescription" rows="3" placeholder="..."></textarea>
-            <label for="recurringOutput">Hasil/Output:</label> <textarea id="recurringOutput" rows="3" placeholder="..."></textarea>
-            <label for="recurringVolume">Volume/Keterangan:</label> <textarea id="recurringVolume" rows="2" placeholder="..."></textarea>
-            <button id="addRecurringEntryButton" onclick="handleAddRecurringEntry()">Simpan Kegiatan Berulang</button>
-            <p id="addRecurringEntryMessage" class="message"></p>
-        </div>
-
-        <div class="report-section card">
-            <h3>Generate Laporan Bulanan</h3>
-            <label for="reportMonth">Pilih Bulan & Tahun:</label> <input type="month" id="reportMonth">
-            <button id="generateReportButton" onclick="handleGenerateReport()">Tampilkan Laporan</button>
-            <div id="reportDisplay" class="report-display"></div>
-        </div>
-        <div id="reportActionsContainer" style="display:none; margin-top:10px;">
-            <button id="printReportButton" onclick="printReport()" style="background-color: #17a2b8;">Cetak ke PDF</button>
-            <button id="exportExcelButton" onclick="handleExportExcel()" style="background-color: #218838; margin-left: 10px;">Cetak ke Excel</button>
-            <button id="deleteAllEntriesButton" onclick="handleDeleteAllEntries()" style="background-color: #dc3545; margin-left: 10px;">Hapus Semua Kegiatan</button>
-        </div>
+        
     </div>
 
     <div id="editLkhModal" class="modal">
@@ -136,6 +174,62 @@
     </div>
 
     <script>
+        // ===== SCRIPT BARU UNTUK NAVIGASI & TAMPILAN =====
+        function setupNewInterfaceListeners() {
+            const navLinks = document.querySelectorAll('a.nav-item');
+            const views = document.querySelectorAll('.view');
+            const hamburger = document.querySelector('.hamburger-menu');
+            const navMenu = document.querySelector('.nav-links');
+            const recurringCheckbox = document.getElementById('toggleRecurringForm');
+            const recurringForm = document.querySelector('.recurring-lkh-form');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetViewId = 'view-' + this.getAttribute('data-view');
+                    views.forEach(view => view.classList.remove('active'));
+                    navLinks.forEach(navLink => navLink.classList.remove('active'));
+                    document.getElementById(targetViewId).classList.add('active');
+                    this.classList.add('active');
+                    if (navMenu.classList.contains('active')) {
+                        navMenu.classList.remove('active');
+                    }
+                });
+            });
+
+            hamburger.addEventListener('click', function() {
+                navMenu.classList.toggle('active');
+            });
+            
+            if(recurringCheckbox && recurringForm) {
+                recurringCheckbox.addEventListener('change', function() {
+                    recurringForm.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+        }
+        
+        // ===== SCRIPT BARU UNTUK GREETING DINAMIS =====
+        function setDynamicGreeting(userName) {
+            const greetingElement = document.getElementById('welcome-greeting');
+            if (!greetingElement) return;
+
+            const hour = new Date().getHours();
+            let timeOfDay;
+
+            if (hour >= 4 && hour < 11) {
+                timeOfDay = "Pagi";
+            } else if (hour >= 11 && hour < 15) {
+                timeOfDay = "Siang";
+            } else if (hour >= 15 && hour < 19) {
+                timeOfDay = "Sore";
+            } else {
+                timeOfDay = "Malam";
+            }
+            
+            const name = userName ? `, ${userName}` : '';
+            greetingElement.innerText = `Selamat ${timeOfDay}${name}!`;
+        }
+
         let currentKopSuratFileData = null;
         const editModal = document.getElementById('editLkhModal');
 
@@ -158,17 +252,9 @@
             window.addEventListener('scroll', resetInactivityTimer); 
         }
         
-        /*
-        window.addEventListener('beforeunload', function (e) {
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                console.log("beforeunload: Attempting to call server-side logoutUser.");
-                google.script.run.logoutUser(); 
-            }
-        });
-        */
-        
         window.addEventListener('load', function() {
-            loadUserDetails();
+            setupNewInterfaceListeners();
+            loadUserDetails(); // Ini juga akan memanggil setDynamicGreeting
             const today = new Date();
             const month = ('0' + (today.getMonth() + 1)).slice(-2);
             const year = today.getFullYear();
@@ -183,32 +269,31 @@
         function loadUserDetails() {
             google.script.run.withSuccessHandler(function(details) {
                 if (details && details.user) {
-                    document.getElementById('userInfoName').innerText = details.user.fullName || 'Pengguna'; // Untuk header
-                    document.getElementById('teacherName').innerText = details.user.fullName || '-'; // Nama Guru (Display only)
-
-                    // Mengisi input fields
+                    // PANGGIL GREETING DI SINI
+                    setDynamicGreeting(details.user.fullName);
+                    
+                    document.getElementById('teacherName').innerText = details.user.fullName || '-';
                     document.getElementById('inputTeacherDuty').value = details.user.mainDuty || '';
                     document.getElementById('inputTeacherSubject').value = details.user.mataPelajaran || '';
                     document.getElementById('inputTeacherClass').value = details.user.kelas || '';
 
                     if (details.school) {
                         document.getElementById('schoolName').innerText = details.school.schoolName || '-';
-                        // Elemen untuk foundationName dan schoolAddress sudah dihapus dari HTML
                     }
-                    if (details.currentKopSurat) { // Jika Anda masih menggunakan ini
+                    if (details.currentKopSurat) {
                         displayCurrentKopSuratInfo(details.currentKopSurat);
                     }
                 } else { 
                     console.error("Gagal memuat detail pengguna."); 
-                    document.getElementById('userInfoName').innerText = 'Error';
-                    // Mungkin tambahkan penanganan error untuk input fields juga
+                    setDynamicGreeting(null); // Tampilkan greeting default jika user gagal dimuat
                 }
             }).withFailureHandler(function(err){ 
                 console.error("Gagal memuat detail user: ", err); 
-                document.getElementById('userInfoName').innerText = 'Error'; 
+                setDynamicGreeting(null);
             }).getInitialDashboardData();
         }
 
+        // ... Sisa script JavaScript Anda dari 'function toggleKopSuratInput()' hingga akhir tidak berubah ...
         function toggleKopSuratInput() {
             const uploadGroup = document.getElementById('kopFileUploadGroup');
             const urlGroup = document.getElementById('kopUrlInputGroup');
@@ -457,29 +542,29 @@
         function handleGenerateReport() {
             const monthYear = document.getElementById('reportMonth').value;
             const btn = document.getElementById('generateReportButton');
-            const reportActions = document.getElementById('reportActionsContainer'); // Ganti ke container
+            const reportActions = document.getElementById('reportActionsContainer');
             const display = document.getElementById('reportDisplay');
             if (!monthYear) {
                 display.innerHTML = "<p style='color:red;'>Pilih bulan dan tahun.</p>";
-                reportActions.style.display = 'none'; // Sembunyikan container
+                reportActions.style.display = 'none';
                 return;
             }
             display.innerHTML = "<p>Memuat laporan...</p>";
             btn.disabled = true; btn.innerText = "Memuat...";
-            reportActions.style.display = 'none'; // Sembunyikan container saat memuat
+            reportActions.style.display = 'none';
 
             google.script.run.withSuccessHandler(function(htmlContent) {
                 display.innerHTML = htmlContent;
                 if (htmlContent && !htmlContent.startsWith("<p>Error:") && !htmlContent.includes("Tidak ada data kegiatan untuk periode ini.")) {
-                    reportActions.style.display = 'block'; // Tampilkan container jika ada data
+                    reportActions.style.display = 'flex';
                 } else {
-                    reportActions.style.display = 'none'; // Sembunyikan jika tidak ada data atau error
+                    reportActions.style.display = 'none';
                 }
                 btn.disabled = false; btn.innerText = "Tampilkan Laporan";
             }).withFailureHandler(function(error) {
                 display.innerHTML = "<p style='color:red;'>Gagal memuat laporan: " + error.message + "</p>";
                 btn.disabled = false; btn.innerText = "Tampilkan Laporan";
-                reportActions.style.display = 'none'; // Sembunyikan jika error
+                reportActions.style.display = 'none';
             }).generateReportHtmlForMonth(monthYear);
         }
         
@@ -501,11 +586,10 @@
 
                 google.script.run
                     .withSuccessHandler(function(response) {
-                        alert(response.message); // Tampilkan pesan dari server
+                        alert(response.message);
                         btn.disabled = false;
                         btn.innerText = "Hapus Semua Kegiatan";
                         if (response.status === 'success') {
-                            // Muat ulang laporan untuk menampilkan data yang sudah kosong
                             handleGenerateReport(); 
                         }
                     })
@@ -518,13 +602,10 @@
             }
         }
 
-        // function printReport() { ... } // <- fungsi yang sudah ada sebelumnya
-
         function printReport() {
             const reportDisplay = document.getElementById('reportDisplay');
             const reportContent = reportDisplay.innerHTML;
 
-            // Hentikan jika tidak ada laporan yang valid
             if (!reportContent || reportContent.includes("Tidak ada data kegiatan") || reportContent.includes("<p>Error:")) {
                 alert("Tidak ada laporan valid untuk dibuatkan PDF.");
                 return;
@@ -544,7 +625,6 @@
 
                     if (response.status === 'success') {
                         alert('PDF berhasil dibuat. Jendela download akan segera terbuka.');
-                        // Buka URL download di tab baru
                         window.open(response.pdfUrl, '_blank');
                     } else {
                         alert('Gagal membuat PDF: ' + response.message);
@@ -627,9 +707,9 @@
             if (confirm("Apakah Anda yakin ingin menghapus kegiatan ini?")) {
                 google.script.run
                     .withSuccessHandler(function(response) {
-                        alert(response.message); // Tetap tampilkan alert konfirmasi
+                        alert(response.message);
                         if (response.status === 'success') {
-                            handleGenerateReport(); // Selalu panggil handleGenerateReport setelah sukses
+                            handleGenerateReport(); 
                         }
                     })
                     .withFailureHandler(function(error) { alert("Error menghapus kegiatan: " + error.message); })
@@ -644,10 +724,10 @@
             google.script.run
                 .withSuccessHandler(function(response) {
                     if (response.status === 'success') {
-                         handleGenerateReport(); // Selalu panggil handleGenerateReport setelah sukses
+                         handleGenerateReport(); 
                     } else {
                         alert(response.message); 
-                        reportDisplay.innerHTML = originalContent; // Kembalikan konten jika tidak sukses (misal, status 'info')
+                        reportDisplay.innerHTML = originalContent;
                     }
                 })
                 .withFailureHandler(function(error) {
@@ -671,7 +751,7 @@
             const btn = document.getElementById('saveTeacherInfoButton');
             const msgEl = document.getElementById('teacherInfoMessage');
             msgEl.innerText = "Menyimpan...";
-            msgEl.className = "message info"; // Atau kelas lain untuk 'loading'
+            msgEl.className = "message info";
             btn.disabled = true;
 
             google.script.run
@@ -680,9 +760,6 @@
                     msgEl.innerText = response.message;
                     if (response.status === 'success') {
                         msgEl.className = "message success";
-                        // Optional: Muat ulang detail pengguna untuk memastikan data terbaru dari server,
-                        // meskipun tidak wajib jika hanya memperbarui field yang sama.
-                        // loadUserDetails(); 
                     } else if (response.status === 'info') {
                         msgEl.className = "message info";
                     } else {
