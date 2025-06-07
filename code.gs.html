@@ -12,11 +12,13 @@ function doGet(e) {
       PropertiesService.getUserProperties().deleteAllProperties(); // Pastikan bersih
       return HtmlService.createTemplateFromFile('Login').evaluate()
         .setTitle('LKH Login')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
     // Sesi valid, tampilkan dashboard
     return HtmlService.createTemplateFromFile('Index').evaluate()
       .setTitle('LKH Dashboard')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } else {
     // Akses ke URL dasar (misalnya, membuka link deployment di tab baru)
@@ -25,6 +27,7 @@ function doGet(e) {
     PropertiesService.getUserProperties().deleteAllProperties();
     return HtmlService.createTemplateFromFile('Login').evaluate()
       .setTitle('LKH Login')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 }
