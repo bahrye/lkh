@@ -5,16 +5,48 @@
     <title>LKH Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?!= include('Stylesheet'); ?>
+    <?!= include('globalScripts'); ?>
     <style>
       body { display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f4; margin:0; }
       .login-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 320px; }
       .login-container h2 { text-align: center; margin-bottom: 20px; color: #333; }
       .login-container label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-      .login-container input[type="email"],
-      .login-container input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;}
-      .login-container button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+      .login-container input[type="email"] {
+        width: 100%; 
+        padding: 10px; 
+        margin-bottom: 15px; 
+        border: 1px solid #ddd; 
+        border-radius: 4px; 
+        box-sizing: border-box;
+      }
+      .login-container button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 15px; }
       .login-container button:hover { background-color: #0056b3; }
       #errorMessage { color: red; text-align: center; margin-top: 10px; min-height: 1em;}
+
+      .password-wrapper {
+        position: relative;
+        margin-bottom: 15px;
+      }
+
+      .password-wrapper input {
+        width: 100%;
+        padding: 10px;
+        padding-right: 45px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      .toggle-password-icon {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #888;
+        display: flex;
+        align-items: center;
+      }
     </style>
   </head>
   <body>
@@ -23,11 +55,21 @@
       <label for="email">Email:</label>
       <input type="email" id="email" name="email" required>
       <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required>
+      <div class="password-wrapper">
+        <input type="password" id="password" name="password" required>
+        <span id="togglePasswordIcon" class="toggle-password-icon">
+          </span>
+      </div>
+
       <button id="loginButton" onclick="handleLogin()">Login</button>
       <p id="errorMessage"></p>
     </div>
+
     <script>
+      // MODIFIKASI DIMULAI: Blok script yang berisi definisi SVG dan fungsi togglePasswordVisibility telah dihapus dari sini dan dipindahkan ke globalScripts.html
+      // MODIFIKASI SELESAI
+
+      // --- Fungsi untuk Proses Login ---
       function handleLogin() {
         document.getElementById('errorMessage').innerText = "";
         var email = document.getElementById('email').value;
@@ -56,8 +98,24 @@
           })
           .loginUser(email, password);
       }
-      document.getElementById('password').addEventListener('keypress', function(event) { if (event.key === 'Enter') handleLogin(); });
-      document.getElementById('email').addEventListener('keypress', function(event) { if (event.key === 'Enter') document.getElementById('password').focus();});
+
+      // --- Event Listener Utama (dijalankan setelah halaman dimuat) ---
+      document.addEventListener('DOMContentLoaded', function() {
+        // Inisialisasi dan event untuk ikon password
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        if (toggleIcon) {
+          toggleIcon.innerHTML = eyeOpenSVG;
+          toggleIcon.setAttribute('title', 'Lihat password');
+          toggleIcon.addEventListener('click', function() {
+            // Fungsi ini sekarang dipanggil dari globalScripts.html
+            togglePasswordVisibility('password', this);
+          });
+        }
+
+        // Event untuk tombol 'Enter'
+        document.getElementById('password').addEventListener('keypress', function(event) { if (event.key === 'Enter') handleLogin(); });
+        document.getElementById('email').addEventListener('keypress', function(event) { if (event.key === 'Enter') document.getElementById('password').focus();});
+      });
     </script>
   </body>
 </html>
