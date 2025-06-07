@@ -197,4 +197,96 @@ button:disabled { background-color: #6c757d; cursor: not-allowed; }
     margin: 1.5cm; /* Margin bisa disesuaikan jika perlu */
   }
 }
+
+/* ======================================================= */
+/* KODE CSS BARU DENGAN BEBERAPA UKURAN LAYAR (BREAKPOINTS)  */
+/* ======================================================= */
+
+/* Untuk Tablet Portrait & Ponsel Besar (Lebar Maksimal 700px) */
+@media (max-width: 700px) {
+  .container {
+    padding: 10px;
+  }
+
+  /* Membuat semua grid menjadi 1 kolom agar tidak berantakan */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 15px 0;
+  }
+  
+  .form-grid > div {
+    margin-bottom: 0;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  header h1 {
+    margin-bottom: 10px;
+  }
+
+  /* ======================================================= */
+  /* PENGATURAN KHUSUS UNTUK AREA TAMPILAN LAPORAN DI PONSEL */
+  /* ======================================================= */
+
+  /* Beri kemampuan scroll horizontal pada pembungkus laporan */
+  .report-display {
+      overflow-x: auto; 
+      padding: 10px; /* Beri sedikit ruang di dalam area scroll */
+      background-color: #f8f9fa; /* Sedikit bedakan warna latar agar jelas */
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+  }
+
+  /* Paksa kontainer laporan di dalamnya untuk tetap lebar seperti desktop */
+  .report-display .report-container {
+      min-width: 900px; /* Atur lebar minimum. Sesuaikan angka ini jika perlu. */
+  }
+
+  /* Pastikan elemen di dalam laporan (seperti ttd) TIDAK menjadi responsif */
+  .report-display .report-container .footer-signatures {
+      flex-direction: row !important; /* Paksa agar tanda tangan tetap bersebelahan */
+  }
+}
+
+/* Untuk Ponsel (Lebar Maksimal 600px) */
+@media (max-width: 600px) {
+  .card h3 {
+    font-size: 1.2em;
+  }
+  
+  input, textarea, select, button {
+      font-size: 16px; /* Ukuran font standar untuk input di mobile agar tidak di-zoom otomatis */
+  }
+
+  .modal-content {
+    width: 90%;
+    padding: 20px;
+  }
+}
+
+/* Untuk Ponsel Layar Kecil (Lebar Maksimal 480px) */
+@media (max-width: 480px) {
+  header h1 {
+    font-size: 1.4em;
+  }
+
+  /* Buat tombol memenuhi lebar layar agar mudah disentuh */
+  button {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  #reportActionsContainer button {
+    margin-top: 10px;
+  }
+
+  .login-container {
+      width: 90%;
+  }
+}
 </style>
