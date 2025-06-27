@@ -1,6 +1,7 @@
 const SCHOOLS_SHEET_NAME = "Schools";
 const TEACHERS_SHEET_NAME = "Teachers";
 const LKH_ENTRIES_SHEET_NAME = "LKH_Entries";
+const SPTJM_TEMPLATE_SHEET_NAME = "SPTJM";
 const KOP_SURAT_FOLDER_ID = "1uDxtZBTN5XthOsfXY3HfxvkhvWlyIbga";
 const PDF_REPORTS_FOLDER_ID = "1XIbDsk9ZR6eFkMGws0PUwLUfnerMC7H4"; 
 
@@ -1312,6 +1313,146 @@ function generateExcelReport(monthYear) {
   } catch (e) {
     Logger.log("Error in generateExcelReport: " + e.message + " Stack: " + e.stack);
     return { status: 'error', message: 'Terjadi kesalahan saat membuat file Excel: ' + e.message };
+  } finally {
+    ss.deleteSheet(tempSheet);
+  }
+}
+
+function generateSptjmPdf(sptjmData) {
+  if (!checkUserSession()) {
+    return { status: 'error', message: 'Sesi tidak valid. Silakan login ulang.' };
+  }
+
+  function uppercaseNameWithoutTitle(fullName) {
+    if (!fullName) return '';
+    const commaIndex = fullName.indexOf(',');
+    if (commaIndex !== -1) {
+      const namePart = fullName.substring(0, commaIndex).toUpperCase();
+      const titlePart = fullName.substring(commaIndex);
+      return namePart + titlePart;
+    } else {
+      return fullName.toUpperCase();
+    }
+  }
+
+  const user = getLoggedInUserDetails();
+  const school = getSchoolDetailsForCurrentUser();
+
+  if (!user || !school) {
+    return { status: 'error', message: 'Gagal memuat data pengguna atau sekolah.' };
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const templateSheet = ss.getSheetByName(SPTJM_TEMPLATE_SHEET_NAME);
+
+  if (!templateSheet) {
+    return { status: 'error', message: `Sheet template dengan nama "${SPTJM_TEMPLATE_SHEET_NAME}" tidak ditemukan.` };
+  }
+
+  const tempSheetName = `SPTJM_${user.fullName.replace(/\s/g, '_')}_${new Date().getTime()}`;
+  const tempSheet = templateSheet.copyTo(ss).setName(tempSheetName);
+
+  try {
+    // Bagian 1-4 (pengisian data) tetap sama...
+    // 1. Sisipkan Kop Surat di A1
+    let imageUrlForReport = '';
+    if (school && school._rawKopSuratSourceValue) {
+      const sourceVal = school._rawKopSuratSourceValue;
+      const sourceTyp = school._rawKopSuratSourceType || (sourceVal ? 'drive' : null);
+      if (sourceTyp === 'url') {
+        imageUrlForReport = sourceVal;
+      } else if (sourceTyp === 'drive') {
+        imageUrlForReport = `https://drive.google.com/uc?export=view&id=${sourceVal}`;
+      }
+    }
+    if (imageUrlForReport) {
+      tempSheet.getRange('A1:J5').merge();
+      const cellImage = SpreadsheetApp.newCellImage().setSourceUrl(imageUrlForReport).build();
+      tempSheet.getRange('A1').setValue(cellImage);
+    }
+
+    // 2. Isi data guru
+    tempSheet.getRange('C10').setValue(user.fullName).setFontWeight('bold');
+    tempSheet.getRange('C11').setValue(user.nip || '-');
+
+    let jabatan = user.mainDuty || '';
+    if (user.mainDuty && user.mainDuty.toLowerCase() === 'guru kelas' && user.kelas) {
+      jabatan = `Guru ${user.kelas}`;
+    } else if (user.mainDuty && user.mainDuty.toLowerCase() === 'guru mapel' && user.mataPelajaran) {
+      jabatan = `Guru Mapel ${user.mataPelajaran}`;
+    }
+    tempSheet.getRange('C12').setValue(jabatan);
+
+    // 3. Isi kalimat pernyataan di B15
+    const [year, month] = sptjmData.monthYear.split('-');
+    const monthName = new Date(year, month - 1, 1).toLocaleString('id-ID', { month: 'long' });
+    const statement = `Perhitungan kehadiran guru Non PNS Sertifikasi (Inpassing dan Non Inpassing) yang terdapat pada daftar absensi ceklok di ${school.schoolName} untuk bulan ${monthName} ${year} adalah benar.`;
+    
+    const statementRange = tempSheet.getRange('B15:J17');
+    statementRange.merge();
+    statementRange.setValue(statement);
+    statementRange.setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+    statementRange.setHorizontalAlignment('left');
+    statementRange.setVerticalAlignment('middle');
+
+    const secondParagraphRange = tempSheet.getRange('B18:J20');
+    secondParagraphRange.merge();
+    secondParagraphRange.setHorizontalAlignment('left');
+    secondParagraphRange.setVerticalAlignment('middle');
+
+    // 4. Isi data tanda tangan
+    const signatureDateParts = sptjmData.signatureDate.split('/');
+    const signatureDateObj = new Date(signatureDateParts[2], signatureDateParts[1] - 1, signatureDateParts[0]);
+    const formattedSignatureDate = signatureDateObj.toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'long', year: 'numeric'
+    });
+    tempSheet.getRange('G25').setValue(`${sptjmData.signaturePlace}, ${formattedSignatureDate}`);
+
+    tempSheet.getRange('A26').setValue(school.typeKepalaMadrasah || 'Kepala Madrasah').setFontWeight('bold');
+    tempSheet.getRange('G26').setValue('Guru Pengajar');
+
+    tempSheet.getRange('A31').setValue(uppercaseNameWithoutTitle(school.headmasterName)).setFontWeight('bold').setFontLine('underline');
+    tempSheet.getRange('G31').setValue(uppercaseNameWithoutTitle(user.fullName)).setFontWeight('bold').setFontLine('underline');
+
+    tempSheet.getRange('A32').setValue(`NIP. ${school.headmasterNIP || '-'}`);
+    tempSheet.getRange('G32').setValue(`NIP. ${user.nip || '-'}`);
+    
+    // 5. Buat dan download PDF
+    SpreadsheetApp.flush();
+    
+    // --- DIKEMBALIKAN KE FITW UNTUK DEBUGGING ---
+    const url = 'https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export?format=pdf' +
+                '&gid=' + tempSheet.getSheetId() + 
+                '&size=A4' +
+                '&portrait=true' +
+                '&fitw=true' + // Kembali menggunakan fitw=true, scale=109 dihapus
+                '&sheetnames=false' +
+                '&printtitle=false' +
+                '&gridlines=false' +
+                '&r1=0&c1=0&r2=32&c2=10';
+    // ---------------------------------------------
+
+    const token = ScriptApp.getOAuthToken();
+    const response = UrlFetchApp.fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token },
+        muteHttpExceptions: true
+    });
+
+    if (response.getResponseCode() !== 200) {
+      Logger.log(response.getContentText());
+      return { status: 'error', message: 'Gagal membuat PDF. Server memberikan respons error. Cek Log untuk detail.' };
+    }
+
+    const pdfFolder = DriveApp.getFolderById(PDF_REPORTS_FOLDER_ID);
+    const finalPdfBlob = response.getBlob().setName(`SPTJM - ${user.fullName} - ${monthName} ${year}.pdf`);
+    const pdfFile = pdfFolder.createFile(finalPdfBlob);
+    const downloadUrl = pdfFile.getUrl().replace(/file\/d\/(.+)\/view.+/, 'uc?export=download&id=$1');
+
+    return { status: 'success', pdfUrl: downloadUrl };
+
+  } catch (e) {
+    Logger.log("Error in generateSptjmPdf: " + e.message + " Stack: " + e.stack);
+    return { status: 'error', message: 'Terjadi kesalahan saat membuat PDF SPTJM: ' + e.message };
   } finally {
     ss.deleteSheet(tempSheet);
   }
