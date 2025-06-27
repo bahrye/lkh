@@ -17,6 +17,7 @@
                     <li><a href="#" class="nav-item active" data-view="dashboard">Dashboard</a></li>
                     <li><a href="#" class="nav-item" data-view="lkh">Input LKH</a></li>
                     <li><a href="#" class="nav-item" data-view="kop">Pengaturan Kop Surat</a></li>
+                    <li><a href="#" class="nav-item" data-view="sptjm">Cetak SPTJM</a></li>
                     <li class="logout-item">
                         <div class="user-info">
                             <button onclick="handleLogout()">Logout</button>
@@ -158,6 +159,31 @@
             </div>
         </div>
         
+        <div id="view-sptjm" class="view">
+            <div class="card">
+                <h3>Cetak Surat Pertanggungjawaban Mutlak (SPTJM)</h3>
+                <p>Silakan pilih periode dan lengkapi detail yang diperlukan untuk membuat file PDF SPTJM.</p>
+                
+                <div class="form-grid">
+                    <div>
+                        <label for="sptjmMonth">Pilih Bulan & Tahun:</label>
+                        <input type="month" id="sptjmMonth">
+                    </div>
+                    <div>
+                        <label for="sptjmPlace">Tempat Tanda Tangan:</label>
+                        <input type="text" id="sptjmPlace" placeholder="Contoh: Jakarta">
+                    </div>
+                    <div>
+                        <label for="sptjmDate">Tanggal Tanda Tangan:</label>
+                        <input type="text" id="sptjmDate" placeholder="dd/mm/yyyy">
+                    </div>
+                </div>
+
+                <button id="processSptjmButton" onclick="handleGenerateSptjm()">Proses & Unduh PDF</button>
+                <p id="sptjmMessage" class="message"></p>
+            </div>
+        </div>
+
     </div>
 
     <div id="editLkhModal" class="modal">
@@ -254,13 +280,19 @@
         
         window.addEventListener('load', function() {
             setupNewInterfaceListeners();
-            loadUserDetails(); // Ini juga akan memanggil setDynamicGreeting
+            loadUserDetails(); 
             const today = new Date();
             const month = ('0' + (today.getMonth() + 1)).slice(-2);
             const year = today.getFullYear();
+            const todayFormatted = ('0' + today.getDate()).slice(-2) + '/' + month + '/' + year;
+
             document.getElementById('reportMonth').value = `${year}-${month}`;
             if (document.getElementById('recurringMonthYear')) {
                 document.getElementById('recurringMonthYear').value = `${year}-${month}`;
+            }
+            if (document.getElementById('sptjmMonth')) { // <-- Tambahkan blok if ini
+                document.getElementById('sptjmMonth').value = `${year}-${month}`;
+                document.getElementById('sptjmDate').value = todayFormatted;
             }
             toggleKopSuratInput();
             setupActivityListeners(); 
@@ -806,6 +838,58 @@
                     alert('Terjadi error di server saat membuat file Excel: ' + error.message);
                 })
                 .generateExcelReport(monthYear);
+        }
+
+        function handleGenerateSptjm() {
+            const btn = document.getElementById('processSptjmButton');
+            const msgEl = document.getElementById('sptjmMessage');
+            msgEl.innerText = "";
+            msgEl.className = "message";
+
+            const sptjmData = {
+                monthYear: document.getElementById('sptjmMonth').value,
+                signaturePlace: document.getElementById('sptjmPlace').value.trim(),
+                signatureDate: document.getElementById('sptjmDate').value.trim()
+            };
+
+            // Validasi input
+            if (!sptjmData.monthYear || !sptjmData.signaturePlace || !sptjmData.signatureDate) {
+                msgEl.innerText = "Semua field harus diisi.";
+                msgEl.className = "message error";
+                return;
+            }
+            if (!/^\d{2}\/\d{2}\/\d{4}$/.test(sptjmData.signatureDate)) {
+                msgEl.innerText = "Format tanggal tanda tangan harus dd/mm/yyyy.";
+                msgEl.className = "message error";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Memproses PDF...';
+            msgEl.innerText = "Mohon tunggu, sedang membuat file SPTJM...";
+            msgEl.className = "message info";
+
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    btn.disabled = false;
+                    btn.innerText = 'Proses & Unduh PDF';
+
+                    if (response.status === 'success') {
+                        msgEl.innerText = 'PDF SPTJM berhasil dibuat. Jendela unduhan akan segera terbuka.';
+                        msgEl.className = "message success";
+                        window.open(response.pdfUrl, '_blank');
+                    } else {
+                        msgEl.innerText = 'Gagal membuat PDF: ' + response.message;
+                        msgEl.className = "message error";
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    btn.disabled = false;
+                    btn.innerText = 'Proses & Unduh PDF';
+                    msgEl.innerText = 'Terjadi error di server saat membuat PDF: ' + error.message;
+                    msgEl.className = "message error";
+                })
+                .generateSptjmPdf(sptjmData);
         }
     </script>
 </body>
