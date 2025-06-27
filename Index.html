@@ -111,14 +111,27 @@
         <div id="view-lkh" class="view">
             <div class="lkh-form card">
                 <h3>Tambah Kegiatan Harian</h3>
-                <div class="form-grid">
-                    <div> <label for="dateOfActivity">Tanggal Kegiatan:</label> <input type="date" id="dateOfActivity" required> </div>
-                    <div> <label for="volume">Volume/Keterangan (JPM, dll.):</label> <input type="text" id="volume" required placeholder="Contoh: 6 Orang Siswa atau 5 JPM"> </div>
+                
+                <div>
+                    <label for="dateOfActivity">Tanggal Kegiatan:</label>
+                    <input type="date" id="dateOfActivity" required>
                 </div>
-                <label for="description">Uraian Kegiatan:</label>
-                <textarea id="description" rows="3" required placeholder="Contoh: Ceklok Masuk&#10;Melaksanakan kebersihan Madrasah&#10;..."></textarea>
-                <label for="output">Hasil/Output:</label>
-                <textarea id="output" rows="3" required placeholder="Contoh: Bukti hadir/Disiplin Kerja&#10;Guru dan Siswa&#10;..."></textarea>
+                
+                <div>
+                    <label for="description">Uraian Kegiatan:</label>
+                    <textarea id="description" rows="3" required placeholder="Contoh: Ceklok Masuk&#10;Melaksanakan kebersihan Madrasah&#10;..."></textarea>
+                </div>
+                
+                <div>
+                    <label for="output">Hasil/Output:</label>
+                    <textarea id="output" rows="3" required placeholder="Contoh: Bukti hadir/Disiplin Kerja&#10;Guru dan Siswa&#10;..."></textarea>
+                </div>
+                
+                <div>
+                    <label for="volume">Volume/Keterangan (JPM, dll.):</label>
+                    <input type="text" id="volume" required placeholder="Contoh: 6 Orang Siswa atau 5 JPM">
+                </div>
+
                 <button id="addEntryButton" onclick="handleAddEntry()">Tambah Kegiatan</button>
                 <p id="addEntryMessage" class="message"></p>
             </div>
